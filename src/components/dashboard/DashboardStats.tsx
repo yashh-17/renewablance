@@ -27,35 +27,37 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({ subscriptions }) => {
   const activeSubscriptions = subscriptions.length;
   
   // Find most expensive subscription
-  const mostExpensive: Subscription = subscriptions.reduce((prev, current) => {
-    // Convert all to monthly cost for comparison
-    const prevMonthly = prev.billingCycle === "monthly" 
-      ? prev.price 
-      : prev.billingCycle === "yearly" 
-        ? prev.price / 12 
-        : prev.price * 4.33;
-        
-    const currentMonthly = current.billingCycle === "monthly" 
-      ? current.price 
-      : current.billingCycle === "yearly" 
-        ? current.price / 12 
-        : current.price * 4.33;
-        
-    return prevMonthly > currentMonthly ? prev : current;
-  }, subscriptions[0] || { 
-    id: "none", 
-    name: "None", 
-    category: "", 
-    price: 0, 
-    billingCycle: "monthly", 
-    status: "", 
-    nextBillingDate: "", 
-    createdAt: "" 
-  });
+  const mostExpensive = subscriptions.length > 0 
+    ? subscriptions.reduce((prev, current) => {
+        // Convert all to monthly cost for comparison
+        const prevMonthly = prev.billingCycle === "monthly" 
+          ? prev.price 
+          : prev.billingCycle === "yearly" 
+            ? prev.price / 12 
+            : prev.price * 4.33;
+            
+        const currentMonthly = current.billingCycle === "monthly" 
+          ? current.price 
+          : current.billingCycle === "yearly" 
+            ? current.price / 12 
+            : current.price * 4.33;
+            
+        return prevMonthly > currentMonthly ? prev : current;
+      }, subscriptions[0])
+    : { 
+        id: "none", 
+        name: "None", 
+        category: "", 
+        price: 0, 
+        billingCycle: "monthly" as const, 
+        status: "", 
+        nextBillingDate: "", 
+        createdAt: "" 
+      };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      <Card>
+      <Card className="rounded-lg shadow-sm hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Monthly Spend</CardTitle>
           <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
@@ -68,7 +70,7 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({ subscriptions }) => {
         </CardContent>
       </Card>
       
-      <Card>
+      <Card className="rounded-lg shadow-sm hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Annual Spend</CardTitle>
           <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -81,7 +83,7 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({ subscriptions }) => {
         </CardContent>
       </Card>
       
-      <Card>
+      <Card className="rounded-lg shadow-sm hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Active Subscriptions</CardTitle>
           <CreditCard className="h-4 w-4 text-muted-foreground" />
@@ -96,7 +98,7 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({ subscriptions }) => {
         </CardContent>
       </Card>
       
-      <Card>
+      <Card className="rounded-lg shadow-sm hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Most Expensive</CardTitle>
           <TrendingUp className="h-4 w-4 text-muted-foreground" />

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -49,7 +48,6 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({
   };
 
   const handleDelete = (id: string, name: string) => {
-    // Prompt the user for confirmation
     if (window.confirm(`Are you sure you want to delete the subscription to ${name}?`)) {
       onDelete(id);
       toast.success(`Subscription to ${name} has been deleted`);
@@ -107,7 +105,7 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {subscriptions.map((subscription) => (
-          <Card key={subscription.id} className="subscription-card">
+          <Card key={subscription.id} className="subscription-card rounded-lg shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-0">
               <div className="flex flex-col h-full">
                 <div className="flex items-start justify-between p-4">
