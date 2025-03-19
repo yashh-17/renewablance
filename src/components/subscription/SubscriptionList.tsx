@@ -148,7 +148,7 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({
                 <div className="p-4 pt-0">
                   <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center">
-                      <Badge variant={subscription.status === 'active' ? 'default' : subscription.status === 'trial' ? 'warning' : 'outline'} className="text-xs">
+                      <Badge variant={subscription.status === 'active' ? 'default' : subscription.status === 'trial' ? 'secondary' : 'outline'} className="text-xs">
                         {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}
                       </Badge>
                     </div>

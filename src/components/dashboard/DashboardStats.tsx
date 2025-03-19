@@ -27,7 +27,7 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({ subscriptions }) => {
   const activeSubscriptions = subscriptions.length;
   
   // Find most expensive subscription
-  const mostExpensive = subscriptions.reduce((prev, current) => {
+  const mostExpensive: Subscription = subscriptions.reduce((prev, current) => {
     // Convert all to monthly cost for comparison
     const prevMonthly = prev.billingCycle === "monthly" 
       ? prev.price 
@@ -42,7 +42,16 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({ subscriptions }) => {
         : current.price * 4.33;
         
     return prevMonthly > currentMonthly ? prev : current;
-  }, subscriptions[0] || { name: "None", price: 0 });
+  }, subscriptions[0] || { 
+    id: "none", 
+    name: "None", 
+    category: "", 
+    price: 0, 
+    billingCycle: "monthly", 
+    status: "", 
+    nextBillingDate: "", 
+    createdAt: "" 
+  });
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

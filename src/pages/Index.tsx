@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AlertCircle } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
