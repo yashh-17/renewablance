@@ -83,6 +83,32 @@ const Dashboard = () => {
     }
   };
 
+  // Handle recommendation actions
+  const handleRecommendationAction = (rec: any) => {
+    switch (rec.type) {
+      case 'underutilized':
+        if (rec.subscriptionId) {
+          const subscription = subscriptions.find(sub => sub.id === rec.subscriptionId);
+          if (subscription) {
+            setSelectedSubscription(subscription);
+            setFormOpen(true);
+            toast.info(`Opened ${subscription.name} for review`);
+          }
+        }
+        break;
+      case 'duplicate':
+        setActiveTab('subscriptions');
+        toast.info(`Switched to Subscriptions tab to review your ${rec.category} subscriptions`);
+        break;
+      case 'budget':
+        setActiveTab('analytics');
+        toast.info('Switched to Analytics tab to review your spending');
+        break;
+      default:
+        break;
+    }
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'analytics':
@@ -131,6 +157,7 @@ const Dashboard = () => {
                         <Button 
                           variant="outline" 
                           className="p-2 h-auto font-normal text-brand-600 rounded-md hover:bg-brand-50 w-full justify-start"
+                          onClick={() => handleRecommendationAction(rec)}
                         >
                           {rec.action} <ArrowRight className="h-4 w-4 ml-1" />
                         </Button>

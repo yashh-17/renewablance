@@ -7,6 +7,17 @@ interface DashboardStatsProps {
   subscriptions: Subscription[];
 }
 
+type MostExpensiveSubscription = Subscription | {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  billingCycle: "monthly" | "yearly" | "weekly";
+  status: string;
+  nextBillingDate: string;
+  createdAt: string;
+};
+
 const DashboardStats: React.FC<DashboardStatsProps> = ({ subscriptions }) => {
   // Calculate total monthly cost
   const totalMonthlyCost = subscriptions.reduce((total, sub) => {
@@ -27,7 +38,7 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({ subscriptions }) => {
   const activeSubscriptions = subscriptions.length;
   
   // Find most expensive subscription
-  const mostExpensive = subscriptions.length > 0 
+  const mostExpensive: MostExpensiveSubscription = subscriptions.length > 0 
     ? subscriptions.reduce((prev, current) => {
         // Convert all to monthly cost for comparison
         const prevMonthly = prev.billingCycle === "monthly" 
