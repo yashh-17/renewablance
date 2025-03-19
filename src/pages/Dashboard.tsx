@@ -5,8 +5,10 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DashboardStats from '@/components/dashboard/DashboardStats';
 import SubscriptionList from '@/components/subscription/SubscriptionList';
 import SubscriptionForm from '@/components/subscription/SubscriptionForm';
+import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Subscription } from '@/types/subscription';
@@ -19,6 +21,7 @@ const Dashboard = () => {
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
+  const [activeTab, setActiveTab] = useState('overview');
   
   // Check if user is logged in
   useEffect(() => {
@@ -87,51 +90,92 @@ const Dashboard = () => {
       <main className="flex-1 container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
         
-        <DashboardStats subscriptions={subscriptions} />
-        
-        {recommendations.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">Recommendations</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {recommendations.map((rec) => (
-                <Card key={rec.id} className="border-l-4 border-l-warning-500">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center">
-                      <AlertCircle className="h-5 w-5 mr-2 text-warning-500" />
-                      {rec.type === 'underutilized' ? 'Low Usage Detected' : 
-                       rec.type === 'duplicate' ? 'Duplicate Services' : 
-                       'Budget Recommendation'}
-                    </CardTitle>
-                    <CardDescription>{rec.message}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Button variant="link" className="p-0 h-auto font-normal text-brand-600">
-                      {rec.action} <ArrowRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Your Subscriptions</h2>
-            <Button 
-              onClick={handleAddSubscription}
-              className="bg-brand-600 hover:bg-brand-700"
-            >
-              Add Subscription
-            </Button>
-          </div>
+        <Tabs 
+          defaultValue="overview" 
+          value={activeTab} 
+          onValueChange={setActiveTab}
+          className="mb-8"
+        >
+          <TabsList className="mb-4">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+          </TabsList>
           
-          <SubscriptionList 
-            subscriptions={subscriptions}
-            onEdit={handleEditSubscription}
-            onDelete={handleDeleteSubscription}
-          />
-        </div>
+          <TabsContent value="overview">
+            <div className="space-y-8">
+              <DashboardStats subscriptions={subscriptions} />
+              
+              {recommendations.length > 0 && (
+                <div className="mb-8">
+                  <h2 className="text-xl font-semibold mb-4">Recommendations</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {recommendations.map((rec) => (
+                      <Card key={rec.id} className="border-l-4 border-l-warning-500">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-lg flex items-center">
+                            <AlertCircle className="h-5 w-5 mr-2 text-warning-500" />
+                            {rec.type === 'underutilized' ? 'Low Usage Detected' : 
+                             rec.type === 'duplicate' ? 'Duplicate Services' : 
+                             'Budget Recommendation'}
+                          </CardTitle>
+                          <CardDescription>{rec.message}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Button variant="link" className="p-0 h-auto font-normal text-brand-600">
+                            {rec.action} <ArrowRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold">Recent Subscriptions</h2>
+                  <Button 
+                    onClick={() => setActiveTab('subscriptions')}
+                    variant="outline"
+                  >
+                    View All
+                  </Button>
+                </div>
+                
+                <SubscriptionList 
+                  subscriptions={subscriptions.slice(0, 3)}
+                  onEdit={handleEditSubscription}
+                  onDelete={handleDeleteSubscription}
+                />
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="analytics">
+            <AnalyticsDashboard subscriptions={subscriptions} />
+          </TabsContent>
+          
+          <TabsContent value="subscriptions">
+            <div className="mb-8">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Your Subscriptions</h2>
+                <Button 
+                  onClick={handleAddSubscription}
+                  className="bg-brand-600 hover:bg-brand-700"
+                >
+                  Add Subscription
+                </Button>
+              </div>
+              
+              <SubscriptionList 
+                subscriptions={subscriptions}
+                onEdit={handleEditSubscription}
+                onDelete={handleDeleteSubscription}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
       </main>
       
       <SubscriptionForm
