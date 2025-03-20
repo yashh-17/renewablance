@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -17,17 +18,19 @@ interface SubscriptionListProps {
   subscriptions: Subscription[];
   onEdit: (subscription: Subscription) => void;
   onDelete: (id: string) => void;
+  searchTerm?: string;
 }
 
 const SubscriptionList: React.FC<SubscriptionListProps> = ({
   subscriptions,
   onEdit,
-  onDelete
+  onDelete,
+  searchTerm = ""
 }) => {
   const [activeTab, setActiveTab] = useState("all");
   
   const formatPrice = (price: number, billingCycle: string) => {
-    return `$${price.toFixed(2)}/${billingCycle.charAt(0)}`;
+    return `₹${price.toFixed(2)}/${billingCycle.charAt(0)}`;
   };
   
   const formatNextBilling = (date: string) => {
@@ -55,8 +58,16 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({
   };
 
   const filteredSubscriptions = subscriptions.filter(sub => {
-    if (activeTab === "all") return true;
-    return sub.status === activeTab;
+    // First filter by tab
+    const matchesTab = activeTab === "all" || sub.status === activeTab;
+    
+    // Then filter by search term if it exists
+    const matchesSearch = searchTerm 
+      ? sub.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        sub.category.toLowerCase().includes(searchTerm.toLowerCase())
+      : true;
+    
+    return matchesTab && matchesSearch;
   });
 
   return (
@@ -94,9 +105,11 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({
         <div className="text-center py-10">
           <h3 className="text-lg font-medium text-gray-500">No subscriptions found</h3>
           <p className="text-sm text-gray-400 mt-1">
-            {activeTab === "all" 
-              ? "Add a subscription to get started"
-              : `No ${activeTab} subscriptions found`}
+            {searchTerm 
+              ? `No results for "${searchTerm}"`
+              : activeTab === "all" 
+                ? "Add a subscription to get started"
+                : `No ${activeTab} subscriptions found`}
           </p>
         </div>
       );
@@ -160,15 +173,21 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({
                     <span>Next billing: {formatNextBilling(subscription.nextBillingDate)}</span>
                   </div>
                   
-                  {subscription.usageData && (
-                    <div className="mt-2 h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full ${
-                          subscription.usageData > 75 ? 'bg-success-500' : 
-                          subscription.usageData > 30 ? 'bg-warning-500' : 'bg-brand-500'
-                        }`} 
-                        style={{ width: `${subscription.usageData}%` }}
-                      ></div>
+                  {subscription.usageData !== undefined && (
+                    <div className="mt-2">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span>Usage</span>
+                        <span>{subscription.usageData}%</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full ${
+                            subscription.usageData > 75 ? 'bg-success-500' : 
+                            subscription.usageData > 30 ? 'bg-warning-500' : 'bg-brand-500'
+                          }`} 
+                          style={{ width: `${subscription.usageData}%` }}
+                        ></div>
+                      </div>
                     </div>
                   )}
                 </div>

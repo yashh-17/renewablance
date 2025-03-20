@@ -66,12 +66,12 @@ export const getRecommendations = (subscriptions: Subscription[]): any[] => {
     return total;
   }, 0);
   
-  // Add a budget recommendation if monthly cost is over $50
+  // Add a budget recommendation if monthly cost is over 50
   if (monthlyCost > 50) {
     recommendations.push({
       id: 'rec-budget',
       type: 'budget',
-      message: `Your monthly subscription cost is $${monthlyCost.toFixed(2)}. Consider setting a budget to reduce costs.`,
+      message: `Your monthly subscription cost is ₹${monthlyCost.toFixed(2)}. Consider setting a budget to reduce costs.`,
       action: 'Consider setting a budget',
       monthlyCost,
     });

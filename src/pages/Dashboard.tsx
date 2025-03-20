@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
@@ -8,8 +9,9 @@ import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import TopNavBar from '@/components/dashboard/TopNavBar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, AlertCircle, IndianRupee } from 'lucide-react';
 import { Subscription } from '@/types/subscription';
 import { getSubscriptions, saveSubscription, deleteSubscription } from '@/services/subscriptionService';
 import { getRecommendations } from '@/services/recommendationService';
@@ -21,6 +23,9 @@ const Dashboard = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [monthlyBudget, setMonthlyBudget] = useState<number | null>(null);
+  const [totalMonthlySpend, setTotalMonthlySpend] = useState(0);
   
   useEffect(() => {
     const currentUser = localStorage.getItem('currentUser');
@@ -28,8 +33,58 @@ const Dashboard = () => {
       navigate('/login');
     } else {
       loadSubscriptions();
+      
+      // Load budget from localStorage
+      const savedBudget = localStorage.getItem('monthlyBudget');
+      if (savedBudget) {
+        setMonthlyBudget(parseFloat(savedBudget));
+      }
     }
   }, [navigate]);
+  
+  // Check budget whenever subscriptions change
+  useEffect(() => {
+    if (subscriptions.length > 0) {
+      // Calculate total monthly spend
+      const monthlyTotal = subscriptions.reduce((total, sub) => {
+        if (sub.status !== 'active' && sub.status !== 'trial') return total;
+        
+        if (sub.billingCycle === "monthly") {
+          return total + sub.price;
+        } else if (sub.billingCycle === "yearly") {
+          return total + (sub.price / 12);
+        } else if (sub.billingCycle === "weekly") {
+          return total + (sub.price * 4.33); // Avg. weeks in a month
+        }
+        return total;
+      }, 0);
+      
+      setTotalMonthlySpend(monthlyTotal);
+      
+      // Check if exceeding budget
+      if (monthlyBudget !== null && monthlyTotal > monthlyBudget) {
+        toast.warning(
+          `You are exceeding your monthly budget of ₹${monthlyBudget.toFixed(2)} by ₹${(monthlyTotal - monthlyBudget).toFixed(2)}`,
+          {
+            duration: 5000,
+          }
+        );
+      }
+    }
+  }, [subscriptions, monthlyBudget]);
+  
+  // Monitor budget changes in localStorage
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const savedBudget = localStorage.getItem('monthlyBudget');
+      if (savedBudget) {
+        setMonthlyBudget(parseFloat(savedBudget));
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
   
   const loadSubscriptions = () => {
     const subs = getSubscriptions();
@@ -72,6 +127,14 @@ const Dashboard = () => {
     } catch (error) {
       toast.error('Error deleting subscription');
       console.error(error);
+    }
+  };
+
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    if (activeTab !== 'subscriptions') {
+      setActiveTab('subscriptions');
+      toast.info('Switched to Subscriptions tab to show search results');
     }
   };
 
@@ -121,12 +184,34 @@ const Dashboard = () => {
               subscriptions={subscriptions}
               onEdit={handleEditSubscription}
               onDelete={handleDeleteSubscription}
+              searchTerm={searchTerm}
             />
           </div>
         );
       default: // overview
         return (
           <div className="space-y-8">
+            {monthlyBudget !== null && totalMonthlySpend > 0 && (
+              <Alert className={totalMonthlySpend > monthlyBudget ? "border-destructive" : "border-success-500"}>
+                <div className="flex items-center">
+                  <IndianRupee className="h-4 w-4 mr-2" />
+                  <AlertTitle>Monthly Budget: ₹{monthlyBudget.toFixed(2)}</AlertTitle>
+                </div>
+                <AlertDescription>
+                  Current monthly spending: ₹{totalMonthlySpend.toFixed(2)} 
+                  {totalMonthlySpend > monthlyBudget ? (
+                    <span className="text-destructive ml-1">
+                      (₹{(totalMonthlySpend - monthlyBudget).toFixed(2)} over budget)
+                    </span>
+                  ) : (
+                    <span className="text-success-500 ml-1">
+                      (₹{(monthlyBudget - totalMonthlySpend).toFixed(2)} under budget)
+                    </span>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <DashboardStats subscriptions={subscriptions} />
             
             {recommendations.length > 0 && (
@@ -142,7 +227,7 @@ const Dashboard = () => {
                            rec.type === 'duplicate' ? 'Duplicate Services' : 
                            'Budget Recommendation'}
                         </CardTitle>
-                        <CardDescription>{rec.message}</CardDescription>
+                        <CardDescription>{rec.message.replace(/\$/g, '₹')}</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <Button 
@@ -190,7 +275,8 @@ const Dashboard = () => {
         <TopNavBar 
           activeTab={activeTab} 
           onTabChange={setActiveTab} 
-          onAddSubscription={handleAddSubscription} 
+          onAddSubscription={handleAddSubscription}
+          onSearch={handleSearch}
         />
         
         <div className="mt-6">

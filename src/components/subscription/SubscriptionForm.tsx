@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +51,7 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
   const [price, setPrice] = useState<number | string>("");
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [status, setStatus] = useState("active");
+  const [usageHours, setUsageHours] = useState<number | string>("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Load subscription data if editing
@@ -62,6 +62,14 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
       setPrice(subscription.price);
       setBillingCycle(subscription.billingCycle);
       setStatus(subscription.status);
+      // Convert usageData percentage to approximate hours if available
+      if (subscription.usageData !== undefined) {
+        // Assuming 100% usage is about 30 hours per month
+        const hours = Math.round((subscription.usageData / 100) * 30);
+        setUsageHours(hours);
+      } else {
+        setUsageHours("");
+      }
     } else {
       // Reset form for new subscription
       setName("");
@@ -69,6 +77,7 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
       setPrice("");
       setBillingCycle("monthly");
       setStatus("active");
+      setUsageHours("");
     }
   }, [subscription, open]);
 
@@ -97,6 +106,10 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
       newErrors.status = "Status is required";
     }
     
+    if (usageHours !== "" && (isNaN(Number(usageHours)) || Number(usageHours) < 0 || Number(usageHours) > 744)) {
+      newErrors.usageHours = "Usage hours must be a number between 0 and 744 (31 days × 24 hours)";
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -115,7 +128,20 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
       nextBillingDate.setFullYear(nextBillingDate.getFullYear() + 1);
     }
     
-    const usageData = Math.floor(Math.random() * 100); // Placeholder for demo
+    // Calculate usageData percentage based on hours
+    // Assuming average monthly usage of 30 hours is 100%
+    let usageData = 0;
+    if (usageHours !== "") {
+      const hours = Number(usageHours);
+      // Cap at 100% (30 hours)
+      usageData = Math.min(Math.round((hours / 30) * 100), 100);
+    } else if (subscription?.usageData !== undefined) {
+      // Keep existing usage data if no new input
+      usageData = subscription.usageData;
+    } else {
+      // Random placeholder for new subscriptions without hours
+      usageData = Math.floor(Math.random() * 100);
+    }
 
     const newSubscription: Subscription = {
       id: subscription?.id || Date.now().toString(),
@@ -127,6 +153,8 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
       nextBillingDate: nextBillingDate.toISOString(),
       createdAt: subscription?.createdAt || new Date().toISOString(),
       usageData,
+      icon: subscription?.icon,
+      iconBg: subscription?.iconBg,
     };
     
     onSave(newSubscription);
@@ -198,7 +226,7 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
             </Label>
             <div className="relative col-span-3">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
-                $
+                ₹
               </span>
               <Input
                 id="price"
@@ -214,6 +242,31 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
             {errors.price && (
               <p className="text-destructive text-sm col-start-2 col-span-3">
                 {errors.price}
+              </p>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="usageHours" className="text-right">
+              Usage Hours
+            </Label>
+            <div className="col-span-3">
+              <Input
+                id="usageHours"
+                type="number"
+                min="0"
+                max="744"
+                value={usageHours}
+                onChange={(e) => setUsageHours(e.target.value)}
+                placeholder="Hours used per month"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Estimated hours you use this subscription per month
+              </p>
+            </div>
+            {errors.usageHours && (
+              <p className="text-destructive text-sm col-start-2 col-span-3">
+                {errors.usageHours}
               </p>
             )}
           </div>

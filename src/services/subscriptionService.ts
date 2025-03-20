@@ -7,7 +7,7 @@ const sampleSubscriptions: Subscription[] = [
     id: '1',
     name: 'Netflix',
     category: 'Entertainment',
-    price: 15.99,
+    price: 649,
     billingCycle: 'monthly',
     status: 'active',
     nextBillingDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(), // 15 days from now
@@ -20,7 +20,7 @@ const sampleSubscriptions: Subscription[] = [
     id: '2',
     name: 'Spotify',
     category: 'Music',
-    price: 9.99,
+    price: 119,
     billingCycle: 'monthly',
     status: 'active',
     nextBillingDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
@@ -33,7 +33,7 @@ const sampleSubscriptions: Subscription[] = [
     id: '3',
     name: 'Amazon Prime',
     category: 'Entertainment',
-    price: 139,
+    price: 1499,
     billingCycle: 'yearly',
     status: 'active',
     nextBillingDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString(), // 120 days from now
@@ -46,7 +46,7 @@ const sampleSubscriptions: Subscription[] = [
     id: '4',
     name: 'Adobe Creative Cloud',
     category: 'Productivity',
-    price: 52.99,
+    price: 4899,
     billingCycle: 'monthly',
     status: 'inactive',
     nextBillingDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
@@ -59,7 +59,7 @@ const sampleSubscriptions: Subscription[] = [
     id: '5',
     name: 'Disney+',
     category: 'Entertainment',
-    price: 7.99,
+    price: 299,
     billingCycle: 'monthly',
     status: 'trial',
     nextBillingDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days from now
@@ -72,7 +72,7 @@ const sampleSubscriptions: Subscription[] = [
     id: '6',
     name: 'iCloud',
     category: 'Cloud Storage',
-    price: 2.99,
+    price: 75,
     billingCycle: 'monthly',
     status: 'active',
     nextBillingDate: new Date(Date.now() + 22 * 24 * 60 * 60 * 1000).toISOString(), // 22 days from now
