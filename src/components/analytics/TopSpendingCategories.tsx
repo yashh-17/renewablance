@@ -23,10 +23,13 @@ const TopSpendingCategories: React.FC<TopSpendingCategoriesProps> = ({ categorie
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {categories.slice(0, 4).map((category) => (
-            <div key={category.name} className="space-y-1 p-4 bg-gray-50 rounded-lg">
+            <div 
+              key={category.name} 
+              className="space-y-1 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105"
+            >
               <div className="text-lg font-semibold">{category.name}</div>
               <div className="text-2xl font-bold text-primary">
-                ${category.monthly.toFixed(2)}/mo
+                ₹{category.monthly.toFixed(2)}/mo
               </div>
               <div className="text-sm text-muted-foreground">
                 {category.count} subscription{category.count !== 1 ? 's' : ''}

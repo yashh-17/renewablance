@@ -21,7 +21,7 @@ const SpendingByCategory: React.FC<SpendingByCategoryProps> = ({ categories }) =
   }));
 
   return (
-    <Card className="h-[400px]">
+    <Card className="h-[400px] hover:shadow-md transition-all duration-300">
       <CardHeader>
         <CardTitle>Monthly Spending by Category</CardTitle>
         <CardDescription>
@@ -46,12 +46,12 @@ const SpendingByCategory: React.FC<SpendingByCategoryProps> = ({ categories }) =
                 tick={{ fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(value) => `$${value}`}
+                tickFormatter={(value) => `₹${value}`}
               />
               <ChartTooltip 
                 content={
                   <ChartTooltipContent 
-                    formatter={(value) => [`$${value}`, "Monthly Spending"]}
+                    formatter={(value) => [`₹${value}`, "Monthly Spending"]}
                   />
                 } 
               />
@@ -60,6 +60,7 @@ const SpendingByCategory: React.FC<SpendingByCategoryProps> = ({ categories }) =
                 radius={[4, 4, 0, 0]} 
                 name="Monthly Spending" 
                 fill="var(--color-amount)"
+                animationDuration={1500}
               />
             </BarChart>
           </ResponsiveContainer>

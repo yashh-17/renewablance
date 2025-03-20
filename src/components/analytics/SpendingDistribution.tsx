@@ -37,7 +37,7 @@ const SpendingDistribution: React.FC<SpendingDistributionProps> = ({ categories 
   }, {} as Record<string, { color: string, label: string }>);
 
   return (
-    <Card className="h-[400px]">
+    <Card className="h-[400px] hover:shadow-md transition-all duration-300">
       <CardHeader>
         <CardTitle>Spending Distribution</CardTitle>
         <CardDescription>
@@ -62,6 +62,8 @@ const SpendingDistribution: React.FC<SpendingDistributionProps> = ({ categories 
                 nameKey="name"
                 label={({ percentage }) => `${percentage}%`}
                 labelLine={false}
+                animationDuration={1000}
+                animationBegin={200}
               >
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
@@ -70,7 +72,7 @@ const SpendingDistribution: React.FC<SpendingDistributionProps> = ({ categories 
               <ChartTooltip 
                 content={
                   <ChartTooltipContent 
-                    formatter={(value, name) => [`$${value} (${chartData.find(d => d.name === name)?.percentage}%)`, name]}
+                    formatter={(value, name) => [`₹${value} (${chartData.find(d => d.name === name)?.percentage}%)`, name]}
                     nameKey="name"
                   />
                 } 

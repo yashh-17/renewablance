@@ -56,7 +56,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ subscriptions }
     .sort((a, b) => b.monthly - a.monthly);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div>
         <h2 className="text-2xl font-bold mb-2">Analytics Dashboard</h2>
         <p className="text-muted-foreground mb-6">
@@ -66,41 +66,41 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ subscriptions }
       
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        <Card className="rounded-lg shadow-sm hover:shadow-md transition-all duration-300 transform hover:scale-105">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monthly Direct</CardTitle>
             <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${monthlyDirect.toFixed(2)}</div>
+            <div className="text-2xl font-bold">₹{monthlyDirect.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
-              {monthlySubs.length} subscription{monthlySubs.length !== 1 ? 's' : ''}
+              ₹{(monthlyDirect / 30).toFixed(2)} per day
             </p>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="rounded-lg shadow-sm hover:shadow-md transition-all duration-300 transform hover:scale-105">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Annual (Monthly Equivalent)</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${annualMonthlyEquivalent.toFixed(2)}</div>
+            <div className="text-2xl font-bold">₹{annualMonthlyEquivalent.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
-              {yearlySubs.length} subscription{yearlySubs.length !== 1 ? 's' : ''}
+              ₹{(annualMonthlyEquivalent / 30).toFixed(2)} per day
             </p>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="rounded-lg shadow-sm hover:shadow-md transition-all duration-300 transform hover:scale-105">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Monthly Spending</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalMonthlySpending.toFixed(2)}</div>
+            <div className="text-2xl font-bold">₹{totalMonthlySpending.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
-              {subscriptions.length} total subscription{subscriptions.length !== 1 ? 's' : ''}
+              ₹{(totalMonthlySpending / 30).toFixed(2)} per day
             </p>
           </CardContent>
         </Card>
