@@ -17,6 +17,9 @@ const TopNavBar: React.FC<TopNavBarProps> = ({
 }) => {
   return (
     <div className="flex items-center justify-between bg-white py-3 px-4 border-b sticky top-0 z-10">
+      <div className="w-1/3"> {/* Empty space for balance */}
+      </div>
+      
       <Tabs value={activeTab} onValueChange={onTabChange} className="w-auto">
         <TabsList className="bg-muted/50">
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -25,7 +28,7 @@ const TopNavBar: React.FC<TopNavBarProps> = ({
         </TabsList>
       </Tabs>
       
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 w-1/3 justify-end">
         <Button variant="outline" size="icon" className="rounded-full">
           <Search className="h-4 w-4" />
         </Button>

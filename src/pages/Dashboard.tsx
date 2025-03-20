@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
@@ -23,7 +22,6 @@ const Dashboard = () => {
   const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   
-  // Check if user is logged in
   useEffect(() => {
     const currentUser = localStorage.getItem('currentUser');
     if (!currentUser) {
@@ -33,29 +31,24 @@ const Dashboard = () => {
     }
   }, [navigate]);
   
-  // Load subscriptions from local storage
   const loadSubscriptions = () => {
     const subs = getSubscriptions();
     setSubscriptions(subs);
     
-    // Generate recommendations based on subscriptions
     const recs = getRecommendations(subs);
     setRecommendations(recs);
   };
   
-  // Open subscription form for adding
   const handleAddSubscription = () => {
     setSelectedSubscription(null);
     setFormOpen(true);
   };
   
-  // Open subscription form for editing
   const handleEditSubscription = (subscription: Subscription) => {
     setSelectedSubscription(subscription);
     setFormOpen(true);
   };
   
-  // Handle save subscription (add or edit)
   const handleSaveSubscription = (subscription: Subscription) => {
     try {
       saveSubscription(subscription);
@@ -72,7 +65,6 @@ const Dashboard = () => {
     }
   };
   
-  // Handle delete subscription
   const handleDeleteSubscription = (id: string) => {
     try {
       deleteSubscription(id);
@@ -83,7 +75,6 @@ const Dashboard = () => {
     }
   };
 
-  // Handle recommendation actions
   const handleRecommendationAction = (rec: any) => {
     switch (rec.type) {
       case 'underutilized':
@@ -193,7 +184,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <DashboardHeader onAddSubscription={handleAddSubscription} />
+      <DashboardHeader />
       
       <main className="flex-1 container mx-auto px-4 py-8">
         <TopNavBar 

@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { Button } from "@/components/ui/button";
 import { 
   DropdownMenu,
   DropdownMenuContent, 
@@ -8,15 +7,12 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { PlusCircle, User, LogOut, Settings } from 'lucide-react';
+import { User, LogOut, Settings } from 'lucide-react';
+import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-interface DashboardHeaderProps {
-  onAddSubscription: () => void;
-}
-
-const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onAddSubscription }) => {
+const DashboardHeader: React.FC = () => {
   const navigate = useNavigate();
   const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 
@@ -38,15 +34,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onAddSubscription }) 
           </Link>
         </div>
 
-        <div className="flex items-center space-x-4">
-          <Button 
-            onClick={onAddSubscription} 
-            className="bg-brand-600 hover:bg-brand-700"
-          >
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Add Subscription
-          </Button>
-          
+        <div className="flex items-center">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="rounded-full w-10 h-10 p-0">
