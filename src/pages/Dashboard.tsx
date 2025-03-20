@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
@@ -172,12 +171,6 @@ const Dashboard = () => {
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Your Subscriptions</h2>
-              <Button 
-                onClick={handleAddSubscription}
-                className="bg-brand-600 hover:bg-brand-700 rounded-md"
-              >
-                Add Subscription
-              </Button>
             </div>
             
             <SubscriptionList 

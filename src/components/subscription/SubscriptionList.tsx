@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
@@ -28,6 +29,7 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({
   searchTerm = ""
 }) => {
   const [activeTab, setActiveTab] = useState("all");
+  const navigate = useNavigate();
   
   const formatPrice = (price: number, billingCycle: string) => {
     return `₹${price.toFixed(2)}/${billingCycle.charAt(0)}`;
@@ -55,6 +57,14 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({
       onDelete(id);
       toast.success(`Subscription to ${name} has been deleted`);
     }
+  };
+  
+  const handleCardClick = (subscriptionId: string, e: React.MouseEvent) => {
+    // Don't navigate if clicking on the dropdown menu or its children
+    if ((e.target as HTMLElement).closest('.dropdown-menu-area')) {
+      return;
+    }
+    navigate(`/subscription/${subscriptionId}`);
   };
 
   const filteredSubscriptions = subscriptions.filter(sub => {
@@ -118,7 +128,11 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {subscriptions.map((subscription) => (
-          <Card key={subscription.id} className="subscription-card rounded-lg shadow-sm hover:shadow-md transition-shadow">
+          <Card 
+            key={subscription.id} 
+            className="subscription-card rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer transform hover:scale-102 transition-transform duration-200"
+            onClick={(e) => handleCardClick(subscription.id, e)}
+          >
             <CardContent className="p-0">
               <div className="flex flex-col h-full">
                 <div className="flex items-start justify-between p-4">
@@ -134,7 +148,7 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({
                     </div>
                   </div>
                   
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 dropdown-menu-area">
                     <div className={`w-2 h-2 rounded-full ${getStatusColor(subscription.status)}`}></div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

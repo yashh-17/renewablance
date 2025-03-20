@@ -1,4 +1,3 @@
-
 import { Subscription } from '@/types/subscription';
 
 // Sample data with known subscription services
@@ -138,4 +137,10 @@ export const deleteSubscription = (id: string): boolean => {
   const filteredSubscriptions = subscriptions.filter((s) => s.id !== id);
   localStorage.setItem(storageKey, JSON.stringify(filteredSubscriptions));
   return true;
+};
+
+// Add this function to get a subscription by ID
+export const getSubscriptionById = (id: string): Subscription | null => {
+  const subscriptions = getSubscriptions();
+  return subscriptions.find(sub => sub.id === id) || null;
 };
