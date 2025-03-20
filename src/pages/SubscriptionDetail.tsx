@@ -34,6 +34,12 @@ const SubscriptionDetail = () => {
 
   useEffect(() => {
     if (id) {
+      fetchSubscriptionData();
+    }
+  }, [id]);
+
+  const fetchSubscriptionData = () => {
+    if (id) {
       const fetchedSubscription = getSubscriptionById(id);
       if (fetchedSubscription) {
         setSubscription(fetchedSubscription);
@@ -43,7 +49,19 @@ const SubscriptionDetail = () => {
         navigate('/dashboard');
       }
     }
-  }, [id, navigate]);
+  };
+
+  // Listen for localStorage changes that might indicate subscription updates
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key && e.key.includes('subscriptions')) {
+        fetchSubscriptionData();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [id]);
 
   const generateMockUsageData = (sub: Subscription) => {
     const currentDate = new Date();
@@ -156,8 +174,8 @@ const SubscriptionDetail = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="transition-all duration-300 animate-in fade-in-50 slide-in-from-bottom-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-in slide-in-from-bottom-5">
+          <Card className="transition-all duration-300 hover:shadow-md">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Subscription Cost</CardTitle>
               <CardDescription>Current subscription billing</CardDescription>
@@ -171,7 +189,7 @@ const SubscriptionDetail = () => {
             </CardContent>
           </Card>
           
-          <Card className="transition-all duration-300 animate-in fade-in-50 slide-in-from-bottom-5 delay-100">
+          <Card className="transition-all duration-300 hover:shadow-md">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Next Billing</CardTitle>
               <CardDescription>When you'll be charged next</CardDescription>
@@ -184,7 +202,7 @@ const SubscriptionDetail = () => {
             </CardContent>
           </Card>
           
-          <Card className="transition-all duration-300 animate-in fade-in-50 slide-in-from-bottom-5 delay-200">
+          <Card className="transition-all duration-300 hover:shadow-md">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Current Usage</CardTitle>
               <CardDescription>How much you're using this service</CardDescription>
@@ -212,7 +230,7 @@ const SubscriptionDetail = () => {
           </Card>
         </div>
         
-        <Card className="mb-6 transition-all duration-300 animate-in fade-in-50 slide-in-from-bottom-5 delay-300">
+        <Card className="mb-6 transition-all duration-300 hover:shadow-md animate-in slide-in-from-bottom-5 delay-150">
           <CardHeader>
             <CardTitle>Monthly Usage History</CardTitle>
             <CardDescription>
@@ -277,7 +295,7 @@ const SubscriptionDetail = () => {
           </CardContent>
         </Card>
         
-        <Card className="transition-all duration-300 animate-in fade-in-50 slide-in-from-bottom-5 delay-400">
+        <Card className="transition-all duration-300 hover:shadow-md animate-in slide-in-from-bottom-5 delay-300">
           <CardHeader>
             <CardTitle>Subscription Details</CardTitle>
           </CardHeader>

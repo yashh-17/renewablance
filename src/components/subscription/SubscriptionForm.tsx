@@ -53,6 +53,8 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
   const [status, setStatus] = useState("active");
   const [usageHours, setUsageHours] = useState<number | string>("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  const isEditMode = !!subscription;
 
   // Load subscription data if editing
   useEffect(() => {
@@ -79,6 +81,9 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
       setStatus("active");
       setUsageHours("");
     }
+    
+    // Clear any previous errors when form opens
+    setErrors({});
   }, [subscription, open]);
 
   const validateForm = () => {
@@ -120,12 +125,17 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
     }
     
     const nextBillingDate = new Date();
-    if (billingCycle === "weekly") {
-      nextBillingDate.setDate(nextBillingDate.getDate() + 7);
-    } else if (billingCycle === "monthly") {
-      nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
-    } else if (billingCycle === "yearly") {
-      nextBillingDate.setFullYear(nextBillingDate.getFullYear() + 1);
+    // Keep the existing next billing date if editing
+    if (subscription?.nextBillingDate) {
+      nextBillingDate.setTime(new Date(subscription.nextBillingDate).getTime());
+    } else {
+      if (billingCycle === "weekly") {
+        nextBillingDate.setDate(nextBillingDate.getDate() + 7);
+      } else if (billingCycle === "monthly") {
+        nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
+      } else if (billingCycle === "yearly") {
+        nextBillingDate.setFullYear(nextBillingDate.getFullYear() + 1);
+      }
     }
     
     // Calculate usageData percentage based on hours
@@ -166,10 +176,10 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {subscription ? "Edit Subscription" : "Add Subscription"}
+            {isEditMode ? `Edit ${subscription.name} Subscription` : "Add Subscription"}
           </DialogTitle>
           <DialogDescription>
-            {subscription
+            {isEditMode
               ? "Update your subscription details below."
               : "Enter the details of your subscription."}
           </DialogDescription>
@@ -328,8 +338,8 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit}>
-            {subscription ? "Update" : "Save"}
+          <Button onClick={handleSubmit} className="animate-pulse-subtle">
+            {isEditMode ? "Update" : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>
