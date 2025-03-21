@@ -112,7 +112,11 @@ const Dashboard = () => {
       toast.success(
         selectedSubscription 
           ? `Updated ${subscription.name} subscription` 
-          : `Added ${subscription.name} subscription`
+          : `Added ${subscription.name} subscription`,
+        {
+          className: "animate-bounce-subtle",
+          position: "top-center",
+        }
       );
       
       // Trigger storage event to notify other components about the change

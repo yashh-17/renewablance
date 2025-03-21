@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer } from "@/components/ui/chart";
 import { format } from "date-fns";
-import { ArrowLeft, Calendar, IndianRupee } from 'lucide-react';
+import { ArrowLeft, Calendar, IndianRupee, Edit } from 'lucide-react';
 import { Subscription } from '@/types/subscription';
 import { getSubscriptionById } from '@/services/subscriptionService';
 import { 
@@ -25,12 +25,15 @@ import {
   ResponsiveContainer,
   Legend 
 } from 'recharts';
+import SubscriptionForm from '@/components/subscription/SubscriptionForm';
+import { toast } from 'sonner';
 
 const SubscriptionDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [usageData, setUsageData] = useState<any[]>([]);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -140,6 +143,35 @@ const SubscriptionDetail = () => {
     }
   };
 
+  const handleEditSubscription = () => {
+    setEditModalOpen(true);
+  };
+
+  const handleSaveSubscription = (updatedSubscription: Subscription) => {
+    try {
+      // Import the saveSubscription function from the service
+      const { saveSubscription } = require('@/services/subscriptionService');
+      saveSubscription(updatedSubscription);
+      
+      // Update the local state
+      setSubscription(updatedSubscription);
+      
+      // Generate new usage data based on the updated subscription
+      generateMockUsageData(updatedSubscription);
+      
+      // Show success message
+      toast.success(`Updated ${updatedSubscription.name} subscription`);
+      
+      // Trigger storage event to notify other components about the change
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: `subscriptions_${JSON.parse(localStorage.getItem('currentUser') || '{}').id}`,
+      }));
+    } catch (error) {
+      toast.error('Error updating subscription');
+      console.error(error);
+    }
+  };
+
   if (!subscription) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
@@ -168,9 +200,21 @@ const SubscriptionDetail = () => {
               </div>
             </div>
             
-            <Badge variant={getStatusBadgeVariant(subscription.status)} className="text-sm px-3 py-1">
-              {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}
-            </Badge>
+            <div className="flex items-center gap-3">
+              <Badge variant={getStatusBadgeVariant(subscription.status)} className="text-sm px-3 py-1">
+                {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}
+              </Badge>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center gap-1 hover:bg-brand-50 hover:text-brand-600 transition-colors duration-200"
+                onClick={handleEditSubscription}
+              >
+                <Edit className="h-4 w-4" />
+                Edit
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -332,6 +376,14 @@ const SubscriptionDetail = () => {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Add the SubscriptionForm component for editing */}
+      <SubscriptionForm
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleSaveSubscription}
+        subscription={subscription}
+      />
     </div>
   );
 };

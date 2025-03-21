@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -173,9 +174,9 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] animate-in fade-in-50 duration-300">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="text-xl">
             {isEditMode ? `Edit ${subscription.name} Subscription` : "Add Subscription"}
           </DialogTitle>
           <DialogDescription>
@@ -338,8 +339,11 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} className="animate-pulse-subtle">
-            {isEditMode ? "Update" : "Save"}
+          <Button onClick={handleSubmit} className="relative overflow-hidden hover:animate-pulse">
+            <span className="relative z-10">
+              {isEditMode ? "Update" : "Save"}
+            </span>
+            <span className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 hover:opacity-20 transition-opacity duration-300"></span>
           </Button>
         </DialogFooter>
       </DialogContent>

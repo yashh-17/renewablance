@@ -67,6 +67,11 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({
     navigate(`/subscription/${subscriptionId}`);
   };
 
+  const handleEditClick = (subscription: Subscription, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click navigation
+    onEdit(subscription);
+  };
+
   const filteredSubscriptions = subscriptions.filter(sub => {
     // First filter by tab
     const matchesTab = activeTab === "all" || sub.status === activeTab;
@@ -157,7 +162,7 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onEdit(subscription)}>
+                        <DropdownMenuItem onClick={(e) => handleEditClick(subscription, e)}>
                           <Edit className="mr-2 h-4 w-4" />
                           <span>Edit</span>
                         </DropdownMenuItem>
