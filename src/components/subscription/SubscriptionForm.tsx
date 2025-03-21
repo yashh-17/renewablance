@@ -14,6 +14,10 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Subscription } from "@/types/subscription";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { getSubscriptions } from "@/services/subscriptionService";
+import { Search, CheckCircle2 } from "lucide-react";
 
 const CATEGORIES = [
   "Entertainment",
@@ -39,6 +43,8 @@ interface SubscriptionFormProps {
   onClose: () => void;
   onSave: (subscription: Subscription) => void;
   subscription?: Subscription | null;
+  isEditMode?: boolean; // Explicitly check if we're in edit mode for top bar
+  availableSubscriptions?: Subscription[]; // For autocomplete in top bar edit mode
 }
 
 const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
@@ -46,6 +52,8 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
   onClose,
   onSave,
   subscription,
+  isEditMode = false,
+  availableSubscriptions = []
 }) => {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -54,8 +62,22 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
   const [status, setStatus] = useState("active");
   const [usageHours, setUsageHours] = useState<number | string>("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [autocompleteOpen, setAutocompleteOpen] = useState(false);
+  const [subscriptionOptions, setSubscriptionOptions] = useState<Subscription[]>([]);
   
-  const isEditMode = !!subscription;
+  // Determine if we're in edit mode (either explicitly or via subscription prop)
+  const effectiveEditMode = isEditMode || !!subscription;
+
+  // Load subscription options for autocomplete when in explicit edit mode
+  useEffect(() => {
+    if (isEditMode && !subscription) {
+      // Only load subscriptions for autocomplete in top bar edit mode
+      const subs = availableSubscriptions.length > 0 
+        ? availableSubscriptions 
+        : getSubscriptions();
+      setSubscriptionOptions(subs);
+    }
+  }, [isEditMode, subscription, availableSubscriptions]);
 
   // Load subscription data if editing
   useEffect(() => {
@@ -73,8 +95,8 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
       } else {
         setUsageHours("");
       }
-    } else {
-      // Reset form for new subscription
+    } else if (!isEditMode) {
+      // Reset form for new subscription (but not for edit mode without selection)
       setName("");
       setCategory("");
       setPrice("");
@@ -85,7 +107,7 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
     
     // Clear any previous errors when form opens
     setErrors({});
-  }, [subscription, open]);
+  }, [subscription, open, isEditMode]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -172,17 +194,52 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
     onClose();
   };
 
+  const handleSubscriptionSelect = (sub: Subscription) => {
+    setName(sub.name);
+    setCategory(sub.category);
+    setPrice(sub.price);
+    setBillingCycle(sub.billingCycle);
+    setStatus(sub.status);
+    
+    if (sub.usageData !== undefined) {
+      const hours = Math.round((sub.usageData / 100) * 30);
+      setUsageHours(hours);
+    } else {
+      setUsageHours("");
+    }
+    
+    setAutocompleteOpen(false);
+  };
+
+  const getDialogTitle = () => {
+    if (isEditMode && !subscription) {
+      return "Edit Subscription";
+    } else if (subscription) {
+      return `Edit ${subscription.name} Subscription`;
+    } else {
+      return "Add Subscription";
+    }
+  };
+
+  const getDialogDescription = () => {
+    if (isEditMode && !subscription) {
+      return "Select a subscription to edit.";
+    } else if (subscription) {
+      return "Update your subscription details below.";
+    } else {
+      return "Enter the details of your subscription.";
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px] animate-in fade-in-50 duration-300">
         <DialogHeader>
           <DialogTitle className="text-xl">
-            {isEditMode ? `Edit ${subscription.name} Subscription` : "Add Subscription"}
+            {getDialogTitle()}
           </DialogTitle>
           <DialogDescription>
-            {isEditMode
-              ? "Update your subscription details below."
-              : "Enter the details of your subscription."}
+            {getDialogDescription()}
           </DialogDescription>
         </DialogHeader>
         
@@ -191,13 +248,61 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
             <Label htmlFor="name" className="text-right">
               Name
             </Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="col-span-3"
-              placeholder="Netflix, Spotify, etc."
-            />
+            
+            {isEditMode && !subscription ? (
+              <div className="col-span-3">
+                <Popover open={autocompleteOpen} onOpenChange={setAutocompleteOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={autocompleteOpen}
+                      className="w-full justify-between"
+                    >
+                      {name || "Select subscription..."}
+                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search subscriptions..." />
+                      <CommandEmpty>No subscription found.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandList>
+                          {subscriptionOptions.map((sub) => (
+                            <CommandItem
+                              key={sub.id}
+                              value={sub.name}
+                              onSelect={() => handleSubscriptionSelect(sub)}
+                              className="cursor-pointer"
+                            >
+                              <div className="flex items-center">
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${sub.iconBg || 'bg-gray-500'}`}>
+                                  <span className="text-white text-xs font-bold">{sub.icon || sub.name.charAt(0)}</span>
+                                </div>
+                                <span>{sub.name}</span>
+                              </div>
+                              {name === sub.name && (
+                                <CheckCircle2 className="ml-auto h-4 w-4 text-green-600" />
+                              )}
+                            </CommandItem>
+                          ))}
+                        </CommandList>
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            ) : (
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="col-span-3"
+                placeholder="Netflix, Spotify, etc."
+              />
+            )}
+            
             {errors.name && (
               <p className="text-destructive text-sm col-start-2 col-span-3">
                 {errors.name}
@@ -341,7 +446,7 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
           </Button>
           <Button onClick={handleSubmit} className="relative overflow-hidden hover:animate-pulse">
             <span className="relative z-10">
-              {isEditMode ? "Update" : "Save"}
+              {subscription || (isEditMode && name) ? "Update" : "Save"}
             </span>
             <span className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 hover:opacity-20 transition-opacity duration-300"></span>
           </Button>

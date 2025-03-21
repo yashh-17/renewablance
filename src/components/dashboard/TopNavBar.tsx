@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, IndianRupee } from 'lucide-react';
+import { Search, Plus, IndianRupee, Pencil } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -10,6 +10,7 @@ interface TopNavBarProps {
   activeTab: string;
   onTabChange: (value: string) => void;
   onAddSubscription: () => void;
+  onEditSubscription?: () => void;
   onSearch?: (searchTerm: string) => void;
 }
 
@@ -17,6 +18,7 @@ const TopNavBar: React.FC<TopNavBarProps> = ({
   activeTab, 
   onTabChange, 
   onAddSubscription,
+  onEditSubscription,
   onSearch
 }) => {
   const [searchVisible, setSearchVisible] = useState(false);
@@ -89,6 +91,14 @@ const TopNavBar: React.FC<TopNavBarProps> = ({
             <Search className="h-4 w-4" />
           </Button>
         )}
+        
+        {onEditSubscription && (
+          <Button onClick={onEditSubscription} variant="outline" className="bg-white border-brand-600 text-brand-600 hover:bg-brand-50 rounded-full">
+            <Pencil className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
+        )}
+        
         <Button onClick={onAddSubscription} className="bg-brand-600 hover:bg-brand-700 rounded-full">
           <Plus className="h-4 w-4 mr-2" />
           Add New

@@ -21,6 +21,7 @@ const Dashboard = () => {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [formOpen, setFormOpen] = useState(false);
+  const [isTopBarEditMode, setIsTopBarEditMode] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
@@ -95,13 +96,27 @@ const Dashboard = () => {
   };
   
   const handleAddSubscription = () => {
+    setIsTopBarEditMode(false);
+    setSelectedSubscription(null);
+    setFormOpen(true);
+  };
+  
+  const handleEditFromTopBar = () => {
+    setIsTopBarEditMode(true);
     setSelectedSubscription(null);
     setFormOpen(true);
   };
   
   const handleEditSubscription = (subscription: Subscription) => {
+    setIsTopBarEditMode(false);
     setSelectedSubscription(subscription);
     setFormOpen(true);
+  };
+  
+  const handleCloseForm = () => {
+    setFormOpen(false);
+    setIsTopBarEditMode(false);
+    setSelectedSubscription(null);
   };
   
   const handleSaveSubscription = (subscription: Subscription) => {
@@ -110,7 +125,7 @@ const Dashboard = () => {
       loadSubscriptions();
       
       toast.success(
-        selectedSubscription 
+        selectedSubscription || (isTopBarEditMode && subscription.id !== Date.now().toString())
           ? `Updated ${subscription.name} subscription` 
           : `Added ${subscription.name} subscription`,
         {
@@ -284,6 +299,7 @@ const Dashboard = () => {
           activeTab={activeTab} 
           onTabChange={setActiveTab} 
           onAddSubscription={handleAddSubscription}
+          onEditSubscription={handleEditFromTopBar}
           onSearch={handleSearch}
         />
         
@@ -294,9 +310,11 @@ const Dashboard = () => {
       
       <SubscriptionForm
         open={formOpen}
-        onClose={() => setFormOpen(false)}
+        onClose={handleCloseForm}
         onSave={handleSaveSubscription}
         subscription={selectedSubscription}
+        isEditMode={isTopBarEditMode}
+        availableSubscriptions={subscriptions}
       />
     </div>
   );
