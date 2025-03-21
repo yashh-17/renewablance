@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,20 +63,34 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [autocompleteOpen, setAutocompleteOpen] = useState(false);
   const [subscriptionOptions, setSubscriptionOptions] = useState<Subscription[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   
   // Determine if we're in edit mode (either explicitly or via subscription prop)
   const effectiveEditMode = isEditMode || !!subscription;
 
+  // Filter subscription options based on search query
+  const filteredOptions = subscriptionOptions.filter(sub => 
+    sub.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   // Load subscription options for autocomplete when in explicit edit mode
   useEffect(() => {
-    if (isEditMode && !subscription) {
+    if (isEditMode) {
       // Only load subscriptions for autocomplete in top bar edit mode
       const subs = availableSubscriptions.length > 0 
         ? availableSubscriptions 
         : getSubscriptions();
       setSubscriptionOptions(subs);
+      setAutocompleteOpen(true);
     }
-  }, [isEditMode, subscription, availableSubscriptions]);
+  }, [isEditMode, availableSubscriptions, open]);
+
+  // Reset search when form closes
+  useEffect(() => {
+    if (!open) {
+      setSearchQuery("");
+    }
+  }, [open]);
 
   // Load subscription data if editing
   useEffect(() => {
@@ -257,19 +270,24 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
                       variant="outline"
                       role="combobox"
                       aria-expanded={autocompleteOpen}
+                      onClick={() => setAutocompleteOpen(true)}
                       className="w-full justify-between"
                     >
                       {name || "Select subscription..."}
                       <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-full p-0">
+                  <PopoverContent className="w-[300px] p-0" align="start">
                     <Command>
-                      <CommandInput placeholder="Search subscriptions..." />
+                      <CommandInput 
+                        placeholder="Search subscriptions..." 
+                        value={searchQuery}
+                        onValueChange={setSearchQuery}
+                      />
                       <CommandEmpty>No subscription found.</CommandEmpty>
                       <CommandGroup>
                         <CommandList>
-                          {subscriptionOptions.map((sub) => (
+                          {filteredOptions.map((sub) => (
                             <CommandItem
                               key={sub.id}
                               value={sub.name}

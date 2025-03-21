@@ -93,7 +93,11 @@ const TopNavBar: React.FC<TopNavBarProps> = ({
         )}
         
         {onEditSubscription && (
-          <Button onClick={onEditSubscription} variant="outline" className="bg-white border-brand-600 text-brand-600 hover:bg-brand-50 rounded-full">
+          <Button 
+            onClick={onEditSubscription} 
+            variant="outline" 
+            className="bg-white border-brand-600 text-brand-600 hover:bg-brand-50 rounded-full"
+          >
             <Pencil className="h-4 w-4 mr-2" />
             Edit
           </Button>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
@@ -43,7 +42,6 @@ const Dashboard = () => {
     }
   }, [navigate]);
   
-  // Check budget whenever subscriptions change
   useEffect(() => {
     if (subscriptions.length > 0) {
       // Calculate total monthly spend
@@ -74,7 +72,6 @@ const Dashboard = () => {
     }
   }, [subscriptions, monthlyBudget]);
   
-  // Monitor budget changes in localStorage
   useEffect(() => {
     const handleStorageChange = () => {
       const savedBudget = localStorage.getItem('monthlyBudget');
