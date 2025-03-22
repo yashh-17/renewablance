@@ -1,4 +1,3 @@
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CircleDollarSign, Calendar, Wallet } from "lucide-react";
@@ -109,8 +108,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ subscriptions }
         </Card>
       </div>
       
-      {/* New Spending Trend Over Time Chart */}
-      <div className="w-full overflow-hidden">
+      {/* Spending Trend Over Time Chart - Added proper container with overflow handling */}
+      <div className="w-full overflow-hidden rounded-lg">
         <SpendingTrendOverTime subscriptions={subscriptions} />
       </div>
       

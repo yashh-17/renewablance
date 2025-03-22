@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -112,15 +113,15 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="w-full h-[350px] md:h-[400px]">
-          <ResponsiveContainer width="100%" height="100%" className="overflow-visible">
+        <div className="w-full h-[350px] md:h-[400px] relative">
+          <ResponsiveContainer width="99%" height="100%">
             <LineChart
               data={chartData}
               margin={{
                 top: 20,
-                right: 30,
+                right: 40, /* Increased right margin to prevent cutting off */
                 left: 20,
-                bottom: 50,
+                bottom: 60, /* Increased bottom margin for x-axis labels */
               }}
             >
               <CartesianGrid strokeDasharray="3 3" />
@@ -130,20 +131,29 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
                 angle={-45}
                 textAnchor="end"
                 height={60}
+                dy={10} /* Move x-axis labels down slightly */
               />
               <YAxis 
                 tick={{ fontSize: 12 }}
                 tickFormatter={(value) => `₹${value}`}
-                width={60}
+                width={70} /* Increased width for y-axis to accommodate labels */
               />
               <Tooltip 
                 formatter={(value) => [`₹${value}`, 'Spending']}
                 labelFormatter={(label) => `Month: ${label}`}
                 wrapperStyle={{ zIndex: 10 }}
+                contentStyle={{ 
+                  backgroundColor: 'var(--background)', 
+                  border: '1px solid var(--border)' 
+                }}
               />
               <Legend 
                 verticalAlign="top"
                 height={36}
+                wrapperStyle={{
+                  paddingTop: "10px",
+                  paddingBottom: "10px"
+                }}
               />
               <Line 
                 type="monotone" 
