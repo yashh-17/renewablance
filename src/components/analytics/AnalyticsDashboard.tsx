@@ -6,6 +6,8 @@ import { Subscription } from "@/types/subscription";
 import SpendingByCategory from "./SpendingByCategory";
 import SpendingDistribution from "./SpendingDistribution";
 import TopSpendingCategories from "./TopSpendingCategories";
+import StatusDistribution from "./StatusDistribution";
+import StatusTrend from "./StatusTrend";
 
 interface AnalyticsDashboardProps {
   subscriptions: Subscription[];
@@ -104,6 +106,12 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ subscriptions }
             </p>
           </CardContent>
         </Card>
+      </div>
+      
+      {/* Status Distribution Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <StatusDistribution subscriptions={subscriptions} />
+        <StatusTrend subscriptions={subscriptions} />
       </div>
       
       {/* Tabbed Sections */}

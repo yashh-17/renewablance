@@ -10,6 +10,7 @@ const sampleSubscriptions: Subscription[] = [
     billingCycle: 'monthly',
     status: 'active',
     nextBillingDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(), // 15 days from now
+    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
     createdAt: new Date().toISOString(),
     usageData: 85,
     iconBg: 'bg-red-600',
@@ -23,6 +24,7 @@ const sampleSubscriptions: Subscription[] = [
     billingCycle: 'monthly',
     status: 'active',
     nextBillingDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+    startDate: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(), // 45 days ago
     createdAt: new Date().toISOString(),
     usageData: 92,
     iconBg: 'bg-green-600',
@@ -36,6 +38,7 @@ const sampleSubscriptions: Subscription[] = [
     billingCycle: 'yearly',
     status: 'active',
     nextBillingDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString(), // 120 days from now
+    startDate: new Date(Date.now() - 245 * 24 * 60 * 60 * 1000).toISOString(), // 245 days ago
     createdAt: new Date().toISOString(),
     usageData: 45,
     iconBg: 'bg-blue-700',
@@ -49,6 +52,7 @@ const sampleSubscriptions: Subscription[] = [
     billingCycle: 'monthly',
     status: 'inactive',
     nextBillingDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+    startDate: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(), // 180 days ago
     createdAt: new Date().toISOString(),
     usageData: 10,
     iconBg: 'bg-red-800',
@@ -62,6 +66,7 @@ const sampleSubscriptions: Subscription[] = [
     billingCycle: 'monthly',
     status: 'trial',
     nextBillingDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days from now
+    startDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(), // 12 days ago
     createdAt: new Date().toISOString(),
     usageData: 30,
     iconBg: 'bg-blue-600',
@@ -75,6 +80,7 @@ const sampleSubscriptions: Subscription[] = [
     billingCycle: 'monthly',
     status: 'active',
     nextBillingDate: new Date(Date.now() + 22 * 24 * 60 * 60 * 1000).toISOString(), // 22 days from now
+    startDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(), // 60 days ago
     createdAt: new Date().toISOString(),
     usageData: 78,
     iconBg: 'bg-gray-400',
@@ -143,4 +149,33 @@ export const deleteSubscription = (id: string): boolean => {
 export const getSubscriptionById = (id: string): Subscription | null => {
   const subscriptions = getSubscriptions();
   return subscriptions.find(sub => sub.id === id) || null;
+};
+
+// Add a new function to get subscriptions due for renewal within a specific timeframe
+export const getSubscriptionsDueForRenewal = (days: number): Subscription[] => {
+  const subscriptions = getSubscriptions();
+  const now = new Date();
+  const futureDate = new Date(now);
+  futureDate.setDate(futureDate.getDate() + days);
+  
+  return subscriptions.filter(sub => {
+    if (sub.status !== 'active' && sub.status !== 'trial') return false;
+    
+    const nextBillingDate = new Date(sub.nextBillingDate);
+    return nextBillingDate >= now && nextBillingDate <= futureDate;
+  });
+};
+
+// Get subscriptions by status
+export const getSubscriptionsByStatus = (): Record<string, Subscription[]> => {
+  const subscriptions = getSubscriptions();
+  
+  return subscriptions.reduce((acc, subscription) => {
+    const { status } = subscription;
+    if (!acc[status]) {
+      acc[status] = [];
+    }
+    acc[status].push(subscription);
+    return acc;
+  }, {} as Record<string, Subscription[]>);
 };

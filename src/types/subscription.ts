@@ -8,6 +8,7 @@ export interface Subscription {
   status: string;
   nextBillingDate: string;
   createdAt: string;
+  startDate?: string;
   usageData?: number;
   icon?: string;
   iconBg?: string;

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +17,10 @@ import { Subscription } from "@/types/subscription";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getSubscriptions } from "@/services/subscriptionService";
-import { Search, CheckCircle2 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Search, CheckCircle2, Calendar as CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const CATEGORIES = [
   "Entertainment",
@@ -60,6 +64,8 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [status, setStatus] = useState("active");
   const [usageHours, setUsageHours] = useState<number | string>("");
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [autocompleteOpen, setAutocompleteOpen] = useState(false);
   const [subscriptionOptions, setSubscriptionOptions] = useState<Subscription[]>([]);
@@ -100,6 +106,15 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
       setPrice(subscription.price);
       setBillingCycle(subscription.billingCycle);
       setStatus(subscription.status);
+      
+      // Set start date if it exists
+      if (subscription.startDate) {
+        setStartDate(new Date(subscription.startDate));
+      } else {
+        // Default to created date if no start date
+        setStartDate(new Date(subscription.createdAt));
+      }
+      
       // Convert usageData percentage to approximate hours if available
       if (subscription.usageData !== undefined) {
         // Assuming 100% usage is about 30 hours per month
@@ -116,6 +131,7 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
       setBillingCycle("monthly");
       setStatus("active");
       setUsageHours("");
+      setStartDate(new Date()); // Default to today for new subscriptions
     }
     
     // Clear any previous errors when form opens
@@ -147,6 +163,10 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
       newErrors.status = "Status is required";
     }
     
+    if (!startDate) {
+      newErrors.startDate = "Start date is required";
+    }
+    
     if (usageHours !== "" && (isNaN(Number(usageHours)) || Number(usageHours) < 0 || Number(usageHours) > 744)) {
       newErrors.usageHours = "Usage hours must be a number between 0 and 744 (31 days × 24 hours)";
     }
@@ -165,12 +185,16 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
     if (subscription?.nextBillingDate) {
       nextBillingDate.setTime(new Date(subscription.nextBillingDate).getTime());
     } else {
-      if (billingCycle === "weekly") {
-        nextBillingDate.setDate(nextBillingDate.getDate() + 7);
-      } else if (billingCycle === "monthly") {
-        nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
-      } else if (billingCycle === "yearly") {
-        nextBillingDate.setFullYear(nextBillingDate.getFullYear() + 1);
+      // Calculate next billing date based on start date and billing cycle
+      if (startDate) {
+        nextBillingDate.setTime(startDate.getTime());
+        if (billingCycle === "weekly") {
+          nextBillingDate.setDate(nextBillingDate.getDate() + 7);
+        } else if (billingCycle === "monthly") {
+          nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
+        } else if (billingCycle === "yearly") {
+          nextBillingDate.setFullYear(nextBillingDate.getFullYear() + 1);
+        }
       }
     }
     
@@ -198,6 +222,7 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
       status,
       nextBillingDate: nextBillingDate.toISOString(),
       createdAt: subscription?.createdAt || new Date().toISOString(),
+      startDate: startDate ? startDate.toISOString() : new Date().toISOString(),
       usageData,
       icon: subscription?.icon,
       iconBg: subscription?.iconBg,
@@ -213,6 +238,14 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
     setPrice(sub.price);
     setBillingCycle(sub.billingCycle);
     setStatus(sub.status);
+    
+    // Set start date if it exists
+    if (sub.startDate) {
+      setStartDate(new Date(sub.startDate));
+    } else {
+      // Default to created date if no start date
+      setStartDate(new Date(sub.createdAt));
+    }
     
     if (sub.usageData !== undefined) {
       const hours = Math.round((sub.usageData / 100) * 30);
@@ -376,6 +409,49 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
             {errors.price && (
               <p className="text-destructive text-sm col-start-2 col-span-3">
                 {errors.price}
+              </p>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="startDate" className="text-right">
+              Start Date
+            </Label>
+            <div className="col-span-3">
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="startDate"
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !startDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={(date) => {
+                      setStartDate(date);
+                      setCalendarOpen(false);
+                    }}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              <p className="text-xs text-muted-foreground mt-1">
+                The date you first subscribed to this service
+              </p>
+            </div>
+            {errors.startDate && (
+              <p className="text-destructive text-sm col-start-2 col-span-3">
+                {errors.startDate}
               </p>
             )}
           </div>

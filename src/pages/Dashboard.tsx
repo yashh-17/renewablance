@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
@@ -6,6 +7,8 @@ import SubscriptionList from '@/components/subscription/SubscriptionList';
 import SubscriptionForm from '@/components/subscription/SubscriptionForm';
 import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import TopNavBar from '@/components/dashboard/TopNavBar';
+import RenewalTimeline from '@/components/subscription/RenewalTimeline';
+import AlertsModule from '@/components/alerts/AlertsModule';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -231,6 +234,15 @@ const Dashboard = () => {
                 </AlertDescription>
               </Alert>
             )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-2">
+                <AlertsModule onEditSubscription={handleEditSubscription} />
+              </div>
+              <div>
+                <RenewalTimeline onEditSubscription={handleEditSubscription} />
+              </div>
+            </div>
             
             <DashboardStats subscriptions={subscriptions} />
             
