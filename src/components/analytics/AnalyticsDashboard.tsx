@@ -110,7 +110,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ subscriptions }
       </div>
       
       {/* New Spending Trend Over Time Chart */}
-      <SpendingTrendOverTime subscriptions={subscriptions} />
+      <div className="w-full overflow-hidden">
+        <SpendingTrendOverTime subscriptions={subscriptions} />
+      </div>
       
       {/* Status Distribution Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

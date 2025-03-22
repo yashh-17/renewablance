@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -13,7 +12,7 @@ import {
   ReferenceDot
 } from 'recharts';
 import { Subscription } from '@/types/subscription';
-import { TrendingUp, ArrowUpCircle } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { format, subMonths, differenceInCalendarMonths } from 'date-fns';
 
 interface SpendingTrendOverTimeProps {
@@ -37,52 +36,41 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
     let peakMonth = '';
     let peakIndex = 0;
 
-    // Generate data for the last 12 months
     for (let i = 11; i >= 0; i--) {
       const monthDate = subMonths(now, i);
       const monthKey = format(monthDate, 'MMM yyyy');
       
-      // Calculate which subscriptions were active in this month
       const monthlyTotal = subs.reduce((total, sub) => {
         const startDate = sub.startDate ? new Date(sub.startDate) : new Date(sub.createdAt);
         
-        // Skip if subscription started after this month
         if (startDate > monthDate) return total;
         
-        // Calculate months difference to determine if inactive subscriptions were active then
         const monthsAgo = differenceInCalendarMonths(now, monthDate);
         
-        // For inactive subscriptions, assume they were active if they started more than 1 month ago
-        // but became inactive within the last 2 months (simplified simulation)
         if (sub.status === 'inactive') {
-          // Random chance based on how long ago this month was
-          // More recent months have higher chance the subscription was still active
           const wasActive = monthsAgo < 3 ? Math.random() > 0.7 : Math.random() > 0.3;
           if (!wasActive) return total;
         }
         
-        // Convert to monthly equivalent
         if (sub.billingCycle === "monthly") {
           return total + sub.price;
         } else if (sub.billingCycle === "yearly") {
           return total + (sub.price / 12);
         } else if (sub.billingCycle === "weekly") {
-          return total + (sub.price * 4.33); // Avg. weeks in a month
+          return total + (sub.price * 4.33);
         }
         return total;
       }, 0);
       
-      // Store data for this month
       monthlyData.push({
         month: monthKey,
         spending: monthlyTotal.toFixed(2)
       });
       
-      // Check if this is the peak spending
       if (monthlyTotal > highestSpending) {
         highestSpending = monthlyTotal;
         peakMonth = monthKey;
-        peakIndex = 11 - i; // Convert to array index
+        peakIndex = 11 - i;
       }
     }
     
@@ -96,7 +84,6 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
     };
   };
 
-  // Custom tooltip for the peak marker
   const renderPeakTooltip = (props: any) => {
     const { active, payload } = props;
     
@@ -114,8 +101,8 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
   };
 
   return (
-    <Card className="h-full">
-      <CardHeader>
+    <Card className="w-full">
+      <CardHeader className="pb-2">
         <CardTitle className="text-lg flex items-center">
           <TrendingUp className="h-5 w-5 mr-2 text-brand-500" />
           Spending Trend Over Time
@@ -125,31 +112,39 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="w-full h-[350px] md:h-[400px]">
+          <ResponsiveContainer width="100%" height="100%" className="overflow-visible">
             <LineChart
               data={chartData}
               margin={{
                 top: 20,
                 right: 30,
                 left: 20,
-                bottom: 10,
+                bottom: 50,
               }}
             >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
                 dataKey="month" 
                 tick={{ fontSize: 12 }}
+                angle={-45}
+                textAnchor="end"
+                height={60}
               />
               <YAxis 
                 tick={{ fontSize: 12 }}
                 tickFormatter={(value) => `₹${value}`}
+                width={60}
               />
               <Tooltip 
                 formatter={(value) => [`₹${value}`, 'Spending']}
                 labelFormatter={(label) => `Month: ${label}`}
+                wrapperStyle={{ zIndex: 10 }}
               />
-              <Legend />
+              <Legend 
+                verticalAlign="top"
+                height={36}
+              />
               <Line 
                 type="monotone" 
                 dataKey="spending" 
