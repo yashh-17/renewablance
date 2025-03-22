@@ -26,7 +26,7 @@ const StatusTrend: React.FC<StatusTrendProps> = ({ subscriptions }) => {
     }
     
     // Calculate subscription status for each month
-    months.forEach(month => {
+    months.forEach((month, monthIndex) => {
       const monthData = {
         name: month.label,
         active: 0,
@@ -49,7 +49,7 @@ const StatusTrend: React.FC<StatusTrendProps> = ({ subscriptions }) => {
             }
           } else if (sub.status === 'trial') {
             // Trials are more recent
-            if (i <= 1) {
+            if (monthIndex <= 1) {
               monthData.trial++;
             } else {
               monthData.active++;
