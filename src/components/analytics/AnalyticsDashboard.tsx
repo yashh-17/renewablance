@@ -8,6 +8,7 @@ import SpendingDistribution from "./SpendingDistribution";
 import TopSpendingCategories from "./TopSpendingCategories";
 import StatusDistribution from "./StatusDistribution";
 import StatusTrend from "./StatusTrend";
+import SpendingTrendOverTime from "./SpendingTrendOverTime";
 
 interface AnalyticsDashboardProps {
   subscriptions: Subscription[];
@@ -107,6 +108,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ subscriptions }
           </CardContent>
         </Card>
       </div>
+      
+      {/* New Spending Trend Over Time Chart */}
+      <SpendingTrendOverTime subscriptions={subscriptions} />
       
       {/* Status Distribution Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

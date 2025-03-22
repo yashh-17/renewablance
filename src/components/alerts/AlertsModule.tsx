@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -12,7 +13,10 @@ import {
   CheckCircle, 
   Calendar, 
   DollarSign, 
-  Info 
+  Info,
+  AlertOctagon,
+  PlusCircle,
+  XCircle 
 } from 'lucide-react';
 import { Subscription } from '@/types/subscription';
 import { getSubscriptions, getSubscriptionsDueForRenewal } from '@/services/subscriptionService';
@@ -21,7 +25,7 @@ import { toast } from 'sonner';
 
 interface Alert {
   id: string;
-  type: 'info' | 'warning' | 'success' | 'renewal';
+  type: 'info' | 'warning' | 'success' | 'renewal' | 'spending' | 'newSubscription' | 'missedPayment';
   title: string;
   message: string;
   date: Date;
@@ -40,31 +44,40 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   const [lastData, setLastData] = useState<{
     totalSpend: number;
     count: number;
-  }>({ totalSpend: 0, count: 0 });
+    subscriptionIds: string[];
+  }>({ totalSpend: 0, count: 0, subscriptionIds: [] });
 
   const generateAlerts = (currentSubscriptions: Subscription[], forceRegenerate = false) => {
     const now = new Date();
     const newAlerts: Alert[] = [];
     
-    // 1. Renewal alerts - subscriptions due for renewal in the next 3 days
-    const upcomingRenewals = getSubscriptionsDueForRenewal(3);
+    // 1. Renewal alerts - subscriptions due for renewal in the next 3, 7, 14, or 30 days
+    const upcomingRenewals = getSubscriptionsDueForRenewal(30);
     
     upcomingRenewals.forEach(sub => {
+      const renewalDate = new Date(sub.nextBillingDate);
       const daysToRenewal = Math.ceil(
-        (new Date(sub.nextBillingDate).getTime() - now.getTime()) / 
+        (renewalDate.getTime() - now.getTime()) / 
         (1000 * 60 * 60 * 24)
       );
       
-      newAlerts.push({
-        id: `renewal-${sub.id}-${now.getTime()}`,
-        type: 'renewal',
-        title: `${sub.name} renewal reminder`,
-        message: `Your subscription to ${sub.name} will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}. The charge will be ₹${sub.price.toFixed(2)}.`,
-        date: now,
-        read: false,
-        action: () => onEditSubscription && onEditSubscription(sub),
-        actionLabel: 'View Details'
-      });
+      // Only generate alerts for 7, 14, or 30 day periods
+      if (daysToRenewal <= 7 || daysToRenewal === 14 || daysToRenewal === 30) {
+        let urgency = '';
+        if (daysToRenewal <= 3) urgency = 'Urgent: ';
+        else if (daysToRenewal <= 7) urgency = 'Soon: ';
+        
+        newAlerts.push({
+          id: `renewal-${sub.id}-${now.getTime()}`,
+          type: 'renewal',
+          title: `${urgency}${sub.name} renewal reminder`,
+          message: `Your subscription to ${sub.name} will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}. The charge will be ₹${sub.price.toFixed(2)}.`,
+          date: now,
+          read: false,
+          action: () => onEditSubscription && onEditSubscription(sub),
+          actionLabel: 'View Details'
+        });
+      }
     });
     
     // 2. Calculate current metrics
@@ -81,17 +94,42 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       return total;
     }, 0);
     
+    // Get current subscription IDs
+    const currentIds = currentSubscriptions.map(sub => sub.id);
+    
     // 3. Check for unusual activity (significant spending increase)
-    if (lastData.totalSpend > 0 && forceRegenerate) {
+    if (lastData.totalSpend > 0 && (forceRegenerate || totalMonthlySpend !== lastData.totalSpend)) {
       const spendingIncrease = totalMonthlySpend - lastData.totalSpend;
       const percentIncrease = (spendingIncrease / lastData.totalSpend) * 100;
       
-      if (spendingIncrease > 0 && percentIncrease > 20) {
+      if (spendingIncrease > 0 && percentIncrease > 15) {
         newAlerts.push({
           id: `spending-${now.getTime()}`,
-          type: 'warning',
+          type: 'spending',
           title: 'Unusual spending increase detected',
           message: `Your monthly subscription spending has increased by ${percentIncrease.toFixed(0)}% (₹${spendingIncrease.toFixed(2)}) compared to your previous total.`,
+          date: now,
+          read: false,
+          action: () => {
+            if (onEditSubscription) {
+              // Find the most expensive subscription
+              const mostExpensive = currentSubscriptions
+                .filter(sub => !lastData.subscriptionIds.includes(sub.id))
+                .sort((a, b) => b.price - a.price)[0];
+              
+              if (mostExpensive) {
+                onEditSubscription(mostExpensive);
+              }
+            }
+          },
+          actionLabel: 'Review Expenses'
+        });
+      } else if (spendingIncrease < 0 && Math.abs(percentIncrease) > 15) {
+        newAlerts.push({
+          id: `spending-decrease-${now.getTime()}`,
+          type: 'info',
+          title: 'Significant spending decrease',
+          message: `Your monthly subscription spending has decreased by ${Math.abs(percentIncrease).toFixed(0)}% (₹${Math.abs(spendingIncrease).toFixed(2)}).`,
           date: now,
           read: false
         });
@@ -99,23 +137,57 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     }
     
     // 4. Check for new subscriptions
-    if (lastData.count > 0 && currentSubscriptions.length > lastData.count && forceRegenerate) {
-      const newSubsCount = currentSubscriptions.length - lastData.count;
+    if (lastData.subscriptionIds.length > 0) {
+      const newSubIds = currentIds.filter(id => !lastData.subscriptionIds.includes(id));
       
-      newAlerts.push({
-        id: `new-subs-${now.getTime()}`,
-        type: 'info',
-        title: 'New subscription(s) added',
-        message: `You've added ${newSubsCount} new subscription${newSubsCount !== 1 ? 's' : ''} to your account.`,
-        date: now,
-        read: false
+      if (newSubIds.length > 0) {
+        const newSubscriptions = currentSubscriptions.filter(sub => newSubIds.includes(sub.id));
+        
+        newSubscriptions.forEach(newSub => {
+          newAlerts.push({
+            id: `new-sub-${newSub.id}-${now.getTime()}`,
+            type: 'newSubscription',
+            title: 'New subscription added',
+            message: `You've added a new subscription: ${newSub.name} (₹${newSub.price.toFixed(2)}/${newSub.billingCycle}).`,
+            date: now,
+            read: false,
+            action: () => onEditSubscription && onEditSubscription(newSub),
+            actionLabel: 'View Details'
+          });
+        });
+      }
+    }
+    
+    // 5. Check for missed payments
+    const potentialMissedPayments = currentSubscriptions.filter(sub => {
+      if (sub.status !== 'active') return false;
+      
+      const nextBillingDate = new Date(sub.nextBillingDate);
+      return nextBillingDate < now && (now.getTime() - nextBillingDate.getTime()) < (7 * 24 * 60 * 60 * 1000); // Within last 7 days
+    });
+    
+    if (potentialMissedPayments.length > 0) {
+      potentialMissedPayments.forEach(sub => {
+        const daysMissed = Math.floor((now.getTime() - new Date(sub.nextBillingDate).getTime()) / (24 * 60 * 60 * 1000));
+        
+        newAlerts.push({
+          id: `missed-payment-${sub.id}-${now.getTime()}`,
+          type: 'missedPayment',
+          title: 'Possible missed payment',
+          message: `Your ${sub.name} subscription payment was due ${daysMissed} day${daysMissed !== 1 ? 's' : ''} ago. Please check your payment method.`,
+          date: now,
+          read: false,
+          action: () => onEditSubscription && onEditSubscription(sub),
+          actionLabel: 'Review Subscription'
+        });
       });
     }
     
     // Update last data
     setLastData({
       totalSpend: totalMonthlySpend,
-      count: currentSubscriptions.length
+      count: currentSubscriptions.length,
+      subscriptionIds: currentIds
     });
     
     // Merge with existing unread alerts 
@@ -167,9 +239,35 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
         return <CheckCircle className="h-5 w-5 text-success-500" />;
       case 'renewal':
         return <Calendar className="h-5 w-5 text-blue-500" />;
+      case 'spending':
+        return <DollarSign className="h-5 w-5 text-red-500" />;
+      case 'newSubscription':
+        return <PlusCircle className="h-5 w-5 text-green-500" />;
+      case 'missedPayment':
+        return <XCircle className="h-5 w-5 text-red-500" />;
       case 'info':
       default:
         return <Info className="h-5 w-5 text-brand-500" />;
+    }
+  };
+
+  const getAlertBackground = (type: string) => {
+    switch (type) {
+      case 'warning':
+        return 'bg-warning-50 border-l-2 border-l-warning-500';
+      case 'success':
+        return 'bg-success-50 border-l-2 border-l-success-500';
+      case 'renewal':
+        return 'bg-blue-50 border-l-2 border-l-blue-500';
+      case 'spending':
+        return 'bg-red-50 border-l-2 border-l-red-500';
+      case 'missedPayment':
+        return 'bg-red-50 border-l-2 border-l-red-500';
+      case 'newSubscription':
+        return 'bg-green-50 border-l-2 border-l-green-500';
+      case 'info':
+      default:
+        return 'bg-muted/30 border-l-2 border-l-brand-500';
     }
   };
 
@@ -188,7 +286,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center">
             <Bell className="h-5 w-5 mr-2 text-brand-500" />
-            Alerts & Notifications
+            Alerts & Notifications Center
           </CardTitle>
           {unreadAlertsCount > 0 && (
             <span className="px-2 py-1 text-xs bg-brand-500 text-white rounded-full">
@@ -200,7 +298,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
           Stay informed about your subscription activity
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="max-h-[400px] overflow-y-auto">
         {alerts.length === 0 ? (
           <div className="text-center py-6">
             <p className="text-muted-foreground">No alerts at this time</p>
@@ -210,7 +308,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
             {alerts.filter(alert => !alert.read).map(alert => (
               <div 
                 key={alert.id} 
-                className="p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                className={`p-3 rounded-lg hover:bg-muted/50 transition-colors ${getAlertBackground(alert.type)}`}
               >
                 <div className="flex items-start">
                   <div className="mt-0.5 mr-3">
