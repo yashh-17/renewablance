@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -14,7 +13,7 @@ import { ChartContainer } from "@/components/ui/chart";
 import { format } from "date-fns";
 import { ArrowLeft, Calendar, IndianRupee, Edit } from 'lucide-react';
 import { Subscription } from '@/types/subscription';
-import { getSubscriptionById } from '@/services/subscriptionService';
+import { getSubscriptionById, saveSubscription } from '@/services/subscriptionService';
 import { 
   Line, 
   LineChart, 
@@ -149,8 +148,7 @@ const SubscriptionDetail = () => {
 
   const handleSaveSubscription = (updatedSubscription: Subscription) => {
     try {
-      // Import the saveSubscription function from the service
-      const { saveSubscription } = require('@/services/subscriptionService');
+      // Update the subscription in the database
       saveSubscription(updatedSubscription);
       
       // Update the local state
@@ -167,8 +165,8 @@ const SubscriptionDetail = () => {
         key: `subscriptions_${JSON.parse(localStorage.getItem('currentUser') || '{}').id}`,
       }));
     } catch (error) {
+      console.error('Error updating subscription:', error);
       toast.error('Error updating subscription');
-      console.error(error);
     }
   };
 

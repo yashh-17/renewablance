@@ -1,4 +1,5 @@
 import { Subscription } from '@/types/subscription';
+import secureLogger, { LogEventType } from './loggingService';
 
 // Sample data with known subscription services
 const sampleSubscriptions: Subscription[] = [
@@ -119,16 +120,44 @@ export const saveSubscription = (subscription: Subscription): Subscription => {
   const storageKey = `${STORAGE_KEY}_${currentUser.id}`;
   const subscriptions = getSubscriptions();
   
+  const isNew = !subscriptions.some(s => s.id === subscription.id);
   const index = subscriptions.findIndex((s) => s.id === subscription.id);
+  
   if (index !== -1) {
     // Update existing subscription
+    const oldSubscription = { ...subscriptions[index] };
     subscriptions[index] = subscription;
+    
+    // Log the update with before/after data (sanitized by the logger)
+    secureLogger.logDataChange(
+      'Subscription', 
+      'updated', 
+      { 
+        id: subscription.id,
+        name: subscription.name,
+        before: oldSubscription,
+        after: subscription
+      }
+    );
   } else {
     // Add new subscription
     subscriptions.push(subscription);
+    
+    // Log the new subscription
+    secureLogger.logDataChange(
+      'Subscription', 
+      'created', 
+      { id: subscription.id, name: subscription.name }
+    );
   }
   
   localStorage.setItem(storageKey, JSON.stringify(subscriptions));
+  
+  // Dispatch a storage event to notify other components about the change
+  window.dispatchEvent(new StorageEvent('storage', {
+    key: storageKey,
+  }));
+  
   return subscription;
 };
 
@@ -140,8 +169,25 @@ export const deleteSubscription = (id: string): boolean => {
   const storageKey = `${STORAGE_KEY}_${currentUser.id}`;
   const subscriptions = getSubscriptions();
   
+  const subscription = subscriptions.find(s => s.id === id);
   const filteredSubscriptions = subscriptions.filter((s) => s.id !== id);
+  
   localStorage.setItem(storageKey, JSON.stringify(filteredSubscriptions));
+  
+  // Log the deletion
+  if (subscription) {
+    secureLogger.logDataChange(
+      'Subscription', 
+      'deleted', 
+      { id, name: subscription.name }
+    );
+  }
+  
+  // Dispatch a storage event to notify other components about the change
+  window.dispatchEvent(new StorageEvent('storage', {
+    key: storageKey,
+  }));
+  
   return true;
 };
 

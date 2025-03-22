@@ -1,4 +1,5 @@
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Subscription } from '@/types/subscription';
@@ -9,6 +10,13 @@ interface StatusTrendProps {
 }
 
 const StatusTrend: React.FC<StatusTrendProps> = ({ subscriptions }) => {
+  const [chartData, setChartData] = useState<any[]>([]);
+
+  // Generate historical data based on subscriptions whenever they change
+  useEffect(() => {
+    setChartData(getHistoricalData());
+  }, [subscriptions]);
+
   // Generate some historical data based on current subscriptions and their start dates
   const getHistoricalData = () => {
     const data = [];
@@ -65,8 +73,6 @@ const StatusTrend: React.FC<StatusTrendProps> = ({ subscriptions }) => {
     
     return data;
   };
-
-  const chartData = getHistoricalData();
 
   return (
     <Card className="h-full">
