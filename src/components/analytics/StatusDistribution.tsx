@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { Subscription } from '@/types/subscription';
 import { Badge } from '@/components/ui/badge';
-import { Activity } from 'lucide-react';
+import { Activity, Check, X, Clock } from 'lucide-react';
+import { ChartContainer, ChartTooltipContent, ChartLegendContent } from '@/components/ui/chart';
 
 interface StatusDistributionProps {
   subscriptions: Subscription[];
@@ -15,6 +16,31 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
   const [innerRingData, setInnerRingData] = useState<{name: string; value: number; color: string}[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [total, setTotal] = useState(0);
+
+  // Status and category color definitions
+  const statusColors = {
+    active: '#16a34a',  // green
+    trial: '#eab308',   // yellow
+    inactive: '#6b7280' // gray
+  };
+
+  const categoryColors = [
+    '#3b82f6', '#ef4444', '#10b981', '#f59e0b', 
+    '#8b5cf6', '#ec4899', '#6366f1', '#f97316'
+  ];
+
+  const renderStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Active':
+        return <Check className="h-3 w-3" />;
+      case 'Inactive':
+        return <X className="h-3 w-3" />;
+      case 'Trial':
+        return <Clock className="h-3 w-3" />;
+      default:
+        return null;
+    }
+  };
 
   useEffect(() => {
     const statusCounts: Record<string, number> = {
@@ -33,11 +59,11 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
     setTotal(totalCount);
     setCounts(statusCounts);
     
-    // Main outer ring data
+    // Main outer ring data (subscription status)
     const data = [
-      { name: 'Active', value: statusCounts.active, color: '#16a34a' },
-      { name: 'Trial', value: statusCounts.trial, color: '#eab308' },
-      { name: 'Inactive', value: statusCounts.inactive, color: '#6b7280' },
+      { name: 'Active', value: statusCounts.active, color: statusColors.active },
+      { name: 'Trial', value: statusCounts.trial, color: statusColors.trial },
+      { name: 'Inactive', value: statusCounts.inactive, color: statusColors.inactive },
     ].filter(item => item.value > 0);
     
     setChartData(data);
@@ -50,12 +76,6 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
       }
       categoryData[sub.category]++;
     });
-    
-    // Color palette for categories
-    const categoryColors = [
-      '#3b82f6', '#ef4444', '#10b981', '#f59e0b', 
-      '#8b5cf6', '#ec4899', '#6366f1', '#f97316'
-    ];
     
     // Create inner ring data array with colors
     const innerData = Object.entries(categoryData)
@@ -86,7 +106,8 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
     }
   };
 
-  const renderCustomizedLabel = ({
+  // Custom label renderer for the outer ring (status)
+  const renderOuterLabel = ({
     cx,
     cy,
     midAngle,
@@ -114,6 +135,28 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
         {`${(percent * 100).toFixed(0)}%`}
       </text>
     );
+  };
+
+  // Function to format tooltip values
+  const tooltipFormatter = (value: number, name: string) => {
+    return [`${value} (${Math.round((value / total) * 100)}%)`, name];
+  };
+
+  // Build chart config for the Legend
+  const chartConfig = {
+    // Status config for outer ring
+    Active: { label: "Active", color: statusColors.active, icon: Check },
+    Trial: { label: "Trial", color: statusColors.trial, icon: Clock },
+    Inactive: { label: "Inactive", color: statusColors.inactive, icon: X },
+    
+    // Add category configs dynamically
+    ...innerRingData.reduce((acc, category, idx) => ({
+      ...acc,
+      [category.name]: { 
+        label: category.name, 
+        color: category.color 
+      }
+    }), {})
   };
 
   return (
@@ -165,7 +208,7 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={renderCustomizedLabel}
+                label={renderOuterLabel}
                 innerRadius={70}
                 outerRadius={100}
                 fill="#8884d8"
@@ -177,9 +220,7 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value: number, name: string) => {
-                  return [`${value} (${Math.round((value / total) * 100)}%)`, name];
-                }}
+                formatter={tooltipFormatter}
                 contentStyle={{ 
                   backgroundColor: 'var(--background)', 
                   border: '1px solid var(--border)' 
@@ -189,7 +230,7 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
                 layout="horizontal" 
                 verticalAlign="bottom" 
                 align="center"
-                wrapperStyle={{ paddingTop: '20px' }}
+                wrapperStyle={{ paddingTop: "20px" }}
               />
             </PieChart>
           </ResponsiveContainer>
