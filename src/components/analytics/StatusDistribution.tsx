@@ -5,7 +5,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recha
 import { Subscription } from '@/types/subscription';
 import { Badge } from '@/components/ui/badge';
 import { Activity, Check, X, Clock } from 'lucide-react';
-import { ChartContainer, ChartTooltipContent, ChartLegendContent } from '@/components/ui/chart';
+import { getSubscriptionsByStatus } from '@/services/subscriptionService';
 
 interface StatusDistributionProps {
   subscriptions: Subscription[];
@@ -17,25 +17,32 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [total, setTotal] = useState(0);
 
-  // Status and category color definitions
+  // Rainbow pastel color scheme
   const statusColors = {
-    active: '#16a34a',  // green
-    trial: '#eab308',   // yellow
-    inactive: '#6b7280' // gray
+    active: '#a8e6cf',  // pastel green
+    trial: '#ffd3b6',   // pastel orange
+    inactive: '#d9d9d9' // pastel gray
   };
 
+  // Rainbow pastel colors for categories
   const categoryColors = [
-    '#3b82f6', '#ef4444', '#10b981', '#f59e0b', 
-    '#8b5cf6', '#ec4899', '#6366f1', '#f97316'
+    '#ffaaa5', // pastel red
+    '#a8e6cf', // pastel green
+    '#dcedc1', // pastel light green
+    '#ffd3b6', // pastel orange
+    '#ff8b94', // pastel darker red
+    '#bbeef3', // pastel light blue
+    '#c7ceea', // pastel blue
+    '#f6def6'  // pastel purple
   ];
 
   const renderStatusIcon = (status: string) => {
     switch (status) {
-      case 'Active':
+      case 'active':
         return <Check className="h-3 w-3" />;
-      case 'Inactive':
+      case 'inactive':
         return <X className="h-3 w-3" />;
-      case 'Trial':
+      case 'trial':
         return <Clock className="h-3 w-3" />;
       default:
         return null;
@@ -43,14 +50,16 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
   };
 
   useEffect(() => {
+    // Count subscriptions by status
     const statusCounts: Record<string, number> = {
       active: 0,
       trial: 0,
       inactive: 0
     };
     
+    // Count directly from actual subscriptions
     subscriptions.forEach(sub => {
-      if (statusCounts[sub.status] !== undefined) {
+      if (sub.status in statusCounts) {
         statusCounts[sub.status]++;
       }
     });
@@ -96,13 +105,13 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'active':
-        return 'bg-green-500';
+        return 'bg-emerald-200';
       case 'trial':
-        return 'bg-yellow-500';
+        return 'bg-orange-200';
       case 'inactive':
-        return 'bg-gray-500';
+        return 'bg-gray-200';
       default:
-        return 'bg-blue-500';
+        return 'bg-blue-200';
     }
   };
 
@@ -126,7 +135,7 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
       <text
         x={x}
         y={y}
-        fill="white"
+        fill="black"
         textAnchor="middle"
         dominantBaseline="central"
         fontSize={12}
@@ -140,23 +149,6 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
   // Function to format tooltip values
   const tooltipFormatter = (value: number, name: string) => {
     return [`${value} (${Math.round((value / total) * 100)}%)`, name];
-  };
-
-  // Build chart config for the Legend
-  const chartConfig = {
-    // Status config for outer ring
-    Active: { label: "Active", color: statusColors.active, icon: Check },
-    Trial: { label: "Trial", color: statusColors.trial, icon: Clock },
-    Inactive: { label: "Inactive", color: statusColors.inactive, icon: X },
-    
-    // Add category configs dynamically
-    ...innerRingData.reduce((acc, category, idx) => ({
-      ...acc,
-      [category.name]: { 
-        label: category.name, 
-        color: category.color 
-      }
-    }), {})
   };
 
   return (
