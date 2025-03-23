@@ -184,11 +184,11 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
                           dy: 10 
                         }),
                         React.createElement(YAxis, { 
-                          tickFormatter: (value) => `₹${value}` 
+                          tickFormatter: (value) => "Rs." + value 
                         }),
                         React.createElement(Tooltip, { 
-                          formatter: (value) => [`₹${value}`, 'Spending'],
-                          labelFormatter: (label) => `Month: ${label}`
+                          formatter: (value) => ["Rs." + value, 'Spending'],
+                          labelFormatter: (label) => "Month: " + label
                         }),
                         React.createElement(Legend),
                         React.createElement(Line, { 
@@ -283,12 +283,12 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
               />
               <YAxis 
                 tick={{ fontSize: 12 }}
-                tickFormatter={(value) => `₹${value}`}
+                tickFormatter={(value) => "Rs." + value}
                 width={70}
               />
               <Tooltip 
-                formatter={(value) => [`₹${value}`, 'Spending']}
-                labelFormatter={(label) => `Month: ${label}`}
+                formatter={(value) => ["Rs." + value, 'Spending']}
+                labelFormatter={(label) => "Month: " + label}
                 wrapperStyle={{ zIndex: 10 }}
                 contentStyle={{ 
                   backgroundColor: 'var(--background)', 
