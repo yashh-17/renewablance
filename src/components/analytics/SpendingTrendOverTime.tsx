@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -13,8 +12,9 @@ import {
   ReferenceDot
 } from 'recharts';
 import { Subscription } from '@/types/subscription';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, Maximize2 } from 'lucide-react';
 import { format, subMonths, differenceInCalendarMonths } from 'date-fns';
+import { Button } from '@/components/ui/button';
 
 interface SpendingTrendOverTimeProps {
   subscriptions: Subscription[];
@@ -101,27 +101,175 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
     return null;
   };
 
+  const openFullScreenChart = () => {
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+      newWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Spending Trend - Full View</title>
+            <style>
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                margin: 0;
+                padding: 20px;
+                background-color: #f8f9fa;
+              }
+              .container {
+                background-color: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                padding: 20px;
+                max-width: 1200px;
+                margin: 0 auto;
+              }
+              h1 {
+                font-size: 24px;
+                margin-bottom: 20px;
+                color: #333;
+              }
+              .peak-info {
+                margin-top: 15px;
+                font-size: 14px;
+                color: #666;
+                display: flex;
+                align-items: center;
+              }
+              .peak-dot {
+                width: 12px;
+                height: 12px;
+                background-color: #ef4444;
+                border-radius: 50%;
+                display: inline-block;
+                margin-right: 8px;
+              }
+            </style>
+            <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+          </head>
+          <body>
+            <div class="container">
+              <h1>Spending Trend Over Time</h1>
+              <div id="chart" style="width: 100%; height: 500px;"></div>
+              ${peakPoint ? `
+                <div class="peak-info">
+                  <span class="peak-dot"></span>
+                  <span>Peak spending (${peakPoint.month}): ₹${peakPoint.spending.toFixed(2)}</span>
+                </div>
+              ` : ''}
+            </div>
+
+            <script>
+              const chartData = ${JSON.stringify(chartData)};
+              const peakPoint = ${JSON.stringify(peakPoint)};
+              
+              const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceDot } = Recharts;
+              
+              const renderChart = () => {
+                const chartContainer = document.getElementById('chart');
+                
+                if (chartContainer && window.Recharts) {
+                  ReactDOM.render(
+                    React.createElement(ResponsiveContainer, { width: '100%', height: '100%' },
+                      React.createElement(LineChart, {
+                        data: chartData,
+                        margin: { top: 20, right: 50, left: 30, bottom: 80 }
+                      }, [
+                        React.createElement(CartesianGrid, { strokeDasharray: '3 3' }),
+                        React.createElement(XAxis, { 
+                          dataKey: 'month', 
+                          angle: -45, 
+                          textAnchor: 'end', 
+                          height: 70, 
+                          dy: 10 
+                        }),
+                        React.createElement(YAxis, { 
+                          tickFormatter: (value) => `₹${value}` 
+                        }),
+                        React.createElement(Tooltip, { 
+                          formatter: (value) => [`₹${value}`, 'Spending'],
+                          labelFormatter: (label) => `Month: ${label}`
+                        }),
+                        React.createElement(Legend),
+                        React.createElement(Line, { 
+                          type: 'monotone', 
+                          dataKey: 'spending', 
+                          name: 'Monthly Spending',
+                          stroke: '#3b82f6',
+                          strokeWidth: 2,
+                          dot: { r: 4, fill: '#3b82f6' },
+                          activeDot: { r: 6 }
+                        }),
+                        peakPoint && React.createElement(ReferenceDot, {
+                          x: peakPoint.month,
+                          y: peakPoint.spending.toFixed(2),
+                          r: 6,
+                          fill: '#ef4444',
+                          stroke: '#fff',
+                          strokeWidth: 2,
+                          isFront: true
+                        })
+                      ])
+                    ),
+                    chartContainer
+                  );
+                } else {
+                  chartContainer.innerHTML = '<p>Chart library not loaded. Please try again later.</p>';
+                }
+              };
+              
+              if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
+                const reactScript = document.createElement('script');
+                reactScript.src = 'https://unpkg.com/react@17/umd/react.production.min.js';
+                document.head.appendChild(reactScript);
+                
+                const reactDOMScript = document.createElement('script');
+                reactDOMScript.src = 'https://unpkg.com/react-dom@17/umd/react-dom.production.min.js';
+                reactDOMScript.onload = renderChart;
+                document.head.appendChild(reactDOMScript);
+              } else {
+                renderChart();
+              }
+            </script>
+          </body>
+        </html>
+      `);
+      newWindow.document.close();
+    }
+  };
+
   return (
     <Card className="w-full">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center">
-          <TrendingUp className="h-5 w-5 mr-2 text-brand-500" />
-          Spending Trend Over Time
+        <CardTitle className="text-lg flex items-center justify-between">
+          <div className="flex items-center">
+            <TrendingUp className="h-5 w-5 mr-2 text-brand-500" />
+            Spending Trend Over Time
+          </div>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={openFullScreenChart} 
+            className="h-8 w-8" 
+            title="Open in full screen"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </Button>
         </CardTitle>
         <CardDescription>
           Visualize your subscription spending over the last 12 months
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="w-full h-[350px] md:h-[400px] relative">
+        <div className="w-full h-[350px] md:h-[400px] relative cursor-pointer" onClick={openFullScreenChart}>
           <ResponsiveContainer width="99%" height="100%">
             <LineChart
               data={chartData}
               margin={{
                 top: 20,
-                right: 40, /* Increased right margin to prevent cutting off */
+                right: 40,
                 left: 20,
-                bottom: 60, /* Increased bottom margin for x-axis labels */
+                bottom: 60,
               }}
             >
               <CartesianGrid strokeDasharray="3 3" />
@@ -131,12 +279,12 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
                 angle={-45}
                 textAnchor="end"
                 height={60}
-                dy={10} /* Move x-axis labels down slightly */
+                dy={10}
               />
               <YAxis 
                 tick={{ fontSize: 12 }}
                 tickFormatter={(value) => `₹${value}`}
-                width={70} /* Increased width for y-axis to accommodate labels */
+                width={70}
               />
               <Tooltip 
                 formatter={(value) => [`₹${value}`, 'Spending']}

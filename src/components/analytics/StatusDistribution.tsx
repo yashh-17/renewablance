@@ -12,6 +12,7 @@ interface StatusDistributionProps {
 
 const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }) => {
   const [chartData, setChartData] = useState<{name: string; value: number; color: string}[]>([]);
+  const [innerRingData, setInnerRingData] = useState<{name: string; value: number; color: string}[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [total, setTotal] = useState(0);
 
@@ -32,6 +33,7 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
     setTotal(totalCount);
     setCounts(statusCounts);
     
+    // Main outer ring data
     const data = [
       { name: 'Active', value: statusCounts.active, color: '#16a34a' },
       { name: 'Trial', value: statusCounts.trial, color: '#eab308' },
@@ -39,6 +41,32 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
     ].filter(item => item.value > 0);
     
     setChartData(data);
+    
+    // Create inner ring data based on subscription categories
+    const categoryData: Record<string, number> = {};
+    subscriptions.forEach(sub => {
+      if (!categoryData[sub.category]) {
+        categoryData[sub.category] = 0;
+      }
+      categoryData[sub.category]++;
+    });
+    
+    // Color palette for categories
+    const categoryColors = [
+      '#3b82f6', '#ef4444', '#10b981', '#f59e0b', 
+      '#8b5cf6', '#ec4899', '#6366f1', '#f97316'
+    ];
+    
+    // Create inner ring data array with colors
+    const innerData = Object.entries(categoryData)
+      .map(([category, count], index) => ({
+        name: category,
+        value: count,
+        color: categoryColors[index % categoryColors.length]
+      }))
+      .filter(item => item.value > 0);
+    
+    setInnerRingData(innerData);
   }, [subscriptions]);
   
   const getPercentage = (count: number) => {
@@ -64,13 +92,14 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
     midAngle,
     innerRadius,
     outerRadius,
-    percent
+    percent,
+    name
   }: any) => {
     const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
     const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
     const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
     
-    if (percent < 0.05) return null;
+    if (percent < 0.08) return null;
     
     return (
       <text
@@ -111,29 +140,62 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
           ))}
         </div>
         
-        <div className="h-[240px] mt-6">
+        <div className="h-[280px] mt-4">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
+              {/* Inner ring - categories */}
+              <Pie
+                data={innerRingData}
+                cx="50%"
+                cy="50%"
+                innerRadius={0}
+                outerRadius={60}
+                fill="#8884d8"
+                paddingAngle={1}
+                dataKey="value"
+              >
+                {innerRingData.map((entry, index) => (
+                  <Cell key={`cell-inner-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              
+              {/* Outer ring - subscription status */}
               <Pie
                 data={chartData}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
                 label={renderCustomizedLabel}
-                outerRadius={80}
+                innerRadius={70}
+                outerRadius={100}
                 fill="#8884d8"
+                paddingAngle={2}
                 dataKey="value"
               >
                 {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Cell key={`cell-outer-${index}`} fill={entry.color} strokeWidth={2} stroke="#fff" />
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value: number) => [`${value} (${getPercentage(value)}%)`, 'Count']}
+                formatter={(value: number, name: string) => {
+                  return [`${value} (${Math.round((value / total) * 100)}%)`, name];
+                }}
+                contentStyle={{ 
+                  backgroundColor: 'var(--background)', 
+                  border: '1px solid var(--border)' 
+                }}
               />
-              <Legend />
+              <Legend 
+                layout="horizontal" 
+                verticalAlign="bottom" 
+                align="center"
+                wrapperStyle={{ paddingTop: '20px' }}
+              />
             </PieChart>
           </ResponsiveContainer>
+          <div className="text-xs text-center text-muted-foreground mt-2">
+            <span>Inner ring: Categories | Outer ring: Subscription Status</span>
+          </div>
         </div>
       </CardContent>
     </Card>
