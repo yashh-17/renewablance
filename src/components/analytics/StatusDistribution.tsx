@@ -5,7 +5,6 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recha
 import { Subscription } from '@/types/subscription';
 import { Badge } from '@/components/ui/badge';
 import { Activity, Check, X, Clock } from 'lucide-react';
-import { getSubscriptionsByStatus } from '@/services/subscriptionService';
 
 interface StatusDistributionProps {
   subscriptions: Subscription[];
@@ -50,7 +49,7 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
   };
 
   useEffect(() => {
-    // Count subscriptions by status
+    // Count subscriptions by status - only these three statuses
     const statusCounts: Record<string, number> = {
       active: 0,
       trial: 0,
@@ -64,7 +63,7 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
       }
     });
     
-    const totalCount = subscriptions.length;
+    const totalCount = Object.values(statusCounts).reduce((sum, count) => sum + count, 0);
     setTotal(totalCount);
     setCounts(statusCounts);
     
@@ -78,8 +77,12 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
     setChartData(data);
     
     // Create inner ring data based on subscription categories
+    // Only include subscriptions with valid statuses
     const categoryData: Record<string, number> = {};
     subscriptions.forEach(sub => {
+      // Skip if not one of our three recognized statuses
+      if (!(sub.status in statusCounts)) return;
+      
       if (!categoryData[sub.category]) {
         categoryData[sub.category] = 0;
       }

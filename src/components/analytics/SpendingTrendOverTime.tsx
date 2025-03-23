@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -12,8 +13,9 @@ import {
   ReferenceDot
 } from 'recharts';
 import { Subscription } from '@/types/subscription';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, ExternalLink } from 'lucide-react';
 import { format, subMonths, differenceInCalendarMonths } from 'date-fns';
+import { Button } from '@/components/ui/button';
 
 interface SpendingTrendOverTimeProps {
   subscriptions: Subscription[];
@@ -100,13 +102,166 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
     return null;
   };
 
+  const openFullScreenChart = () => {
+    // Create a new window with the chart data
+    const newWindow = window.open('', '_blank');
+    if (!newWindow) {
+      alert('Please allow pop-ups to view the full screen chart');
+      return;
+    }
+
+    // HTML for the new window
+    const chartHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Spending Trend - Full View</title>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <script src="https://cdn.tailwindcss.com"></script>
+          <script src="https://unpkg.com/react/umd/react.production.min.js"></script>
+          <script src="https://unpkg.com/react-dom/umd/react-dom.production.min.js"></script>
+          <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+          <style>
+            body {
+              font-family: system-ui, -apple-system, sans-serif;
+              padding: 2rem;
+              background-color: #f9fafb;
+            }
+            .chart-container {
+              background-color: white;
+              border-radius: 0.5rem;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+              padding: 1.5rem;
+              margin-bottom: 1rem;
+            }
+            h1 {
+              font-size: 1.5rem;
+              font-weight: 600;
+              margin-bottom: 1rem;
+              color: #111827;
+            }
+            p {
+              color: #6b7280;
+              margin-bottom: 2rem;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container mx-auto max-w-6xl">
+            <h1 class="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                <polyline points="17 6 23 6 23 12"></polyline>
+              </svg>
+              Spending Trend Over Time
+            </h1>
+            <p>Visualize your subscription spending over the last 12 months</p>
+            <div class="chart-container">
+              <div id="chart" style="width: 100%; height: 70vh;"></div>
+            </div>
+          </div>
+          <script>
+            // Chart data passed from the main window
+            const chartData = ${JSON.stringify(chartData)};
+            const peakPoint = ${JSON.stringify(peakPoint)};
+            
+            // Render the chart using Recharts
+            document.addEventListener('DOMContentLoaded', function() {
+              const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceDot } = Recharts;
+              
+              const renderChart = () => {
+                return React.createElement(
+                  ResponsiveContainer,
+                  { width: '100%', height: '100%' },
+                  React.createElement(
+                    LineChart,
+                    {
+                      data: chartData,
+                      margin: { top: 20, right: 40, left: 20, bottom: 60 }
+                    },
+                    [
+                      React.createElement(CartesianGrid, { strokeDasharray: '3 3', key: 'grid' }),
+                      React.createElement(XAxis, { 
+                        dataKey: 'month', 
+                        tick: { fontSize: 12 },
+                        angle: -45,
+                        textAnchor: 'end',
+                        height: 60,
+                        dy: 10,
+                        key: 'xaxis'
+                      }),
+                      React.createElement(YAxis, { 
+                        tick: { fontSize: 12 },
+                        tickFormatter: (value) => \`Rs.\${value}\`,
+                        width: 70,
+                        key: 'yaxis'
+                      }),
+                      React.createElement(Tooltip, { 
+                        formatter: (value) => [\`Rs.\${value}\`, 'Spending'],
+                        labelFormatter: (label) => \`Month: \${label}\`,
+                        key: 'tooltip'
+                      }),
+                      React.createElement(Legend, { 
+                        verticalAlign: 'top',
+                        height: 36,
+                        key: 'legend'
+                      }),
+                      React.createElement(Line, { 
+                        type: 'monotone', 
+                        dataKey: 'spending', 
+                        name: 'Monthly Spending', 
+                        stroke: '#3b82f6', 
+                        strokeWidth: 2,
+                        dot: { r: 4, fill: '#3b82f6' },
+                        activeDot: { r: 6 },
+                        key: 'line'
+                      }),
+                      peakPoint && React.createElement(ReferenceDot, { 
+                        x: peakPoint.month, 
+                        y: peakPoint.spending.toFixed(2), 
+                        r: 6,
+                        fill: '#ef4444',
+                        stroke: '#fff',
+                        strokeWidth: 2,
+                        isFront: true,
+                        key: 'peak'
+                      })
+                    ]
+                  )
+                );
+              };
+              
+              ReactDOM.render(renderChart(), document.getElementById('chart'));
+            });
+          </script>
+        </body>
+      </html>
+    `;
+
+    // Write to the new window
+    newWindow.document.write(chartHtml);
+    newWindow.document.close();
+  };
+
   return (
     <Card className="w-full">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center">
-          <TrendingUp className="h-5 w-5 mr-2 text-brand-500" />
-          Spending Trend Over Time
-        </CardTitle>
+        <div className="flex justify-between items-center">
+          <CardTitle className="text-lg flex items-center">
+            <TrendingUp className="h-5 w-5 mr-2 text-brand-500" />
+            Spending Trend Over Time
+          </CardTitle>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-8 px-2" 
+            onClick={openFullScreenChart}
+          >
+            <ExternalLink className="h-4 w-4 mr-1" />
+            <span className="text-xs">Full View</span>
+          </Button>
+        </div>
         <CardDescription>
           Visualize your subscription spending over the last 12 months
         </CardDescription>

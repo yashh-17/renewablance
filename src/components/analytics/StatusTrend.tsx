@@ -12,6 +12,13 @@ interface StatusTrendProps {
 const StatusTrend: React.FC<StatusTrendProps> = ({ subscriptions }) => {
   const [chartData, setChartData] = useState<any[]>([]);
 
+  // Rainbow pastel colors that match with StatusDistribution
+  const statusColors = {
+    active: '#a8e6cf',  // pastel green
+    trial: '#ffd3b6',   // pastel orange
+    inactive: '#d9d9d9' // pastel gray
+  };
+
   // Generate historical data based on subscriptions whenever they change
   useEffect(() => {
     setChartData(getHistoricalData());
@@ -102,9 +109,9 @@ const StatusTrend: React.FC<StatusTrendProps> = ({ subscriptions }) => {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="active" name="Active" fill="#16a34a" />
-              <Bar dataKey="trial" name="Trial" fill="#eab308" />
-              <Bar dataKey="inactive" name="Inactive" fill="#6b7280" />
+              <Bar dataKey="active" name="Active" fill={statusColors.active} />
+              <Bar dataKey="trial" name="Trial" fill={statusColors.trial} />
+              <Bar dataKey="inactive" name="Inactive" fill={statusColors.inactive} />
             </BarChart>
           </ResponsiveContainer>
         </div>
