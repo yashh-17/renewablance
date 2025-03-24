@@ -117,9 +117,6 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <script src="https://cdn.tailwindcss.com"></script>
-          <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
-          <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
-          <script src="https://unpkg.com/recharts@2.1.9/umd/Recharts.min.js"></script>
           <style>
             body {
               font-family: system-ui, -apple-system, sans-serif;
@@ -144,6 +141,14 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
               color: #6b7280;
               margin-bottom: 2rem;
             }
+            .loading {
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              height: 100%;
+              font-size: 1.2rem;
+              color: #4b5563;
+            }
           </style>
         </head>
         <body>
@@ -157,85 +162,101 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
             </h1>
             <p>Visualize your subscription spending over the last 12 months</p>
             <div class="chart-container">
-              <div id="chart"></div>
+              <div id="chart">
+                <div class="loading">Loading chart...</div>
+              </div>
             </div>
           </div>
+          
+          <!-- Load dependencies with specific versions and in the correct order -->
+          <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+          <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+          <script src="https://unpkg.com/recharts@2.5.0/umd/Recharts.min.js" crossorigin></script>
+          
           <script>
-            const chartData = ${JSON.stringify(chartData)};
-            const peakPoint = ${JSON.stringify(peakPoint)};
-            
-            const renderChart = () => {
-              const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceDot } = Recharts;
+            // Wait for all scripts to load
+            window.addEventListener('load', function() {
+              const chartData = ${JSON.stringify(chartData)};
+              const peakPoint = ${JSON.stringify(peakPoint)};
               
-              return React.createElement(
-                ResponsiveContainer,
-                { width: '100%', height: '100%' },
-                React.createElement(
-                  LineChart,
-                  {
-                    data: chartData,
-                    margin: { top: 20, right: 40, left: 20, bottom: 60 }
-                  },
-                  [
-                    React.createElement(CartesianGrid, { strokeDasharray: '3 3', key: 'grid' }),
-                    React.createElement(XAxis, { 
-                      dataKey: 'month', 
-                      tick: { fontSize: 12 },
-                      angle: -45,
-                      textAnchor: 'end',
-                      height: 60,
-                      dy: 10,
-                      key: 'xaxis'
-                    }),
-                    React.createElement(YAxis, { 
-                      tick: { fontSize: 12 },
-                      tickFormatter: (value) => \`Rs.\${value}\`,
-                      width: 70,
-                      key: 'yaxis'
-                    }),
-                    React.createElement(Tooltip, { 
-                      formatter: (value) => [\`Rs.\${value}\`, 'Spending'],
-                      labelFormatter: (label) => \`Month: \${label}\`,
-                      key: 'tooltip'
-                    }),
-                    React.createElement(Legend, { 
-                      verticalAlign: 'top',
-                      height: 36,
-                      key: 'legend'
-                    }),
-                    React.createElement(Line, { 
-                      type: 'monotone', 
-                      dataKey: 'spending', 
-                      name: 'Monthly Spending', 
-                      stroke: '#3b82f6', 
-                      strokeWidth: 2,
-                      dot: { r: 4, fill: '#3b82f6' },
-                      activeDot: { r: 6 },
-                      key: 'line'
-                    }),
-                    peakPoint && React.createElement(ReferenceDot, { 
-                      x: peakPoint.month, 
-                      y: peakPoint.spending.toFixed(2), 
-                      r: 6,
-                      fill: '#ef4444',
-                      stroke: '#fff',
-                      strokeWidth: 2,
-                      isFront: true,
-                      key: 'peak'
-                    })
-                  ]
-                )
-              );
-            };
-            
-            // Wait for the DOM to be ready and libraries to load
-            window.onload = function() {
-              if (typeof React !== 'undefined' && typeof ReactDOM !== 'undefined' && typeof Recharts !== 'undefined') {
-                ReactDOM.render(renderChart(), document.getElementById('chart'));
-              } else {
-                document.getElementById('chart').innerHTML = '<div style="color: red; text-align: center; padding: 20px;">Error: Required libraries failed to load. Please try again.</div>';
+              function renderChart() {
+                try {
+                  if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || typeof Recharts === 'undefined') {
+                    throw new Error('Required libraries not loaded');
+                  }
+                  
+                  const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceDot } = Recharts;
+                  
+                  const ChartComponent = React.createElement(
+                    ResponsiveContainer,
+                    { width: '100%', height: '100%' },
+                    React.createElement(
+                      LineChart,
+                      {
+                        data: chartData,
+                        margin: { top: 20, right: 40, left: 20, bottom: 60 }
+                      },
+                      [
+                        React.createElement(CartesianGrid, { strokeDasharray: '3 3', key: 'grid' }),
+                        React.createElement(XAxis, { 
+                          dataKey: 'month', 
+                          tick: { fontSize: 12 },
+                          angle: -45,
+                          textAnchor: 'end',
+                          height: 60,
+                          dy: 10,
+                          key: 'xaxis'
+                        }),
+                        React.createElement(YAxis, { 
+                          tick: { fontSize: 12 },
+                          tickFormatter: (value) => \`Rs.\${value}\`,
+                          width: 70,
+                          key: 'yaxis'
+                        }),
+                        React.createElement(Tooltip, { 
+                          formatter: (value) => [\`Rs.\${value}\`, 'Spending'],
+                          labelFormatter: (label) => \`Month: \${label}\`,
+                          key: 'tooltip'
+                        }),
+                        React.createElement(Legend, { 
+                          verticalAlign: 'top',
+                          height: 36,
+                          key: 'legend'
+                        }),
+                        React.createElement(Line, { 
+                          type: 'monotone', 
+                          dataKey: 'spending', 
+                          name: 'Monthly Spending', 
+                          stroke: '#3b82f6', 
+                          strokeWidth: 2,
+                          dot: { r: 4, fill: '#3b82f6' },
+                          activeDot: { r: 6 },
+                          key: 'line'
+                        }),
+                        peakPoint && React.createElement(ReferenceDot, { 
+                          x: peakPoint.month, 
+                          y: peakPoint.spending.toFixed(2), 
+                          r: 6,
+                          fill: '#ef4444',
+                          stroke: '#fff',
+                          strokeWidth: 2,
+                          isFront: true,
+                          key: 'peak'
+                        })
+                      ]
+                    )
+                  );
+                  
+                  ReactDOM.render(ChartComponent, document.getElementById('chart'));
+                } catch (error) {
+                  console.error('Error rendering chart:', error);
+                  document.getElementById('chart').innerHTML = '<div style="color: red; text-align: center; padding: 20px;">Error: ' + error.message + '. Please try again.</div>';
+                }
               }
-            };
+              
+              // Try to render after a small delay to ensure scripts are loaded
+              setTimeout(renderChart, 500);
+            });
           </script>
         </body>
       </html>

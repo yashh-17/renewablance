@@ -1,3 +1,4 @@
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CircleDollarSign, Calendar, Wallet } from "lucide-react";
@@ -8,6 +9,9 @@ import TopSpendingCategories from "./TopSpendingCategories";
 import StatusDistribution from "./StatusDistribution";
 import StatusTrend from "./StatusTrend";
 import SpendingTrendOverTime from "./SpendingTrendOverTime";
+import UpcomingRenewals from "./UpcomingRenewals";
+import BudgetVsActual from "./BudgetVsActual";
+import SubscriptionOverlap from "./SubscriptionOverlap";
 
 interface AnalyticsDashboardProps {
   subscriptions: Subscription[];
@@ -108,9 +112,19 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ subscriptions }
         </Card>
       </div>
       
-      {/* Spending Trend Over Time Chart - Added proper container with overflow handling */}
-      <div className="w-full overflow-hidden rounded-lg">
-        <SpendingTrendOverTime subscriptions={subscriptions} />
+      {/* Main Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Spending Trend and Upcoming Renewals */}
+        <div className="space-y-6">
+          <SpendingTrendOverTime subscriptions={subscriptions} />
+          <UpcomingRenewals subscriptions={subscriptions} />
+        </div>
+        
+        {/* Budget vs Actual and Subscription Overlap */}
+        <div className="space-y-6">
+          <BudgetVsActual subscriptions={subscriptions} />
+          <SubscriptionOverlap subscriptions={subscriptions} />
+        </div>
       </div>
       
       {/* Status Distribution Charts */}
