@@ -12,7 +12,6 @@ interface StatusDistributionProps {
 
 const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }) => {
   const [chartData, setChartData] = useState<{name: string; value: number; color: string}[]>([]);
-  const [innerRingData, setInnerRingData] = useState<{name: string; value: number; color: string}[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [total, setTotal] = useState(0);
 
@@ -22,18 +21,6 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
     trial: '#ffd3b6',   // pastel orange
     inactive: '#d9d9d9' // pastel gray
   };
-
-  // Rainbow pastel colors for categories
-  const categoryColors = [
-    '#ffaaa5', // pastel red
-    '#a8e6cf', // pastel green
-    '#dcedc1', // pastel light green
-    '#ffd3b6', // pastel orange
-    '#ff8b94', // pastel darker red
-    '#bbeef3', // pastel light blue
-    '#c7ceea', // pastel blue
-    '#f6def6'  // pastel purple
-  ];
 
   const renderStatusIcon = (status: string) => {
     switch (status) {
@@ -67,7 +54,7 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
     setTotal(totalCount);
     setCounts(statusCounts);
     
-    // Main outer ring data (subscription status)
+    // Create data for the status pie chart
     const data = [
       { name: 'Active', value: statusCounts.active, color: statusColors.active },
       { name: 'Trial', value: statusCounts.trial, color: statusColors.trial },
@@ -75,30 +62,6 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
     ].filter(item => item.value > 0);
     
     setChartData(data);
-    
-    // Create inner ring data based on subscription categories
-    // Only include subscriptions with valid statuses
-    const categoryData: Record<string, number> = {};
-    subscriptions.forEach(sub => {
-      // Skip if not one of our three recognized statuses
-      if (!(sub.status in statusCounts)) return;
-      
-      if (!categoryData[sub.category]) {
-        categoryData[sub.category] = 0;
-      }
-      categoryData[sub.category]++;
-    });
-    
-    // Create inner ring data array with colors
-    const innerData = Object.entries(categoryData)
-      .map(([category, count], index) => ({
-        name: category,
-        value: count,
-        color: categoryColors[index % categoryColors.length]
-      }))
-      .filter(item => item.value > 0);
-    
-    setInnerRingData(innerData);
   }, [subscriptions]);
   
   const getPercentage = (count: number) => {
@@ -118,8 +81,8 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
     }
   };
 
-  // Custom label renderer for the outer ring (status)
-  const renderOuterLabel = ({
+  // Custom label renderer for the chart
+  const renderCustomLabel = ({
     cx,
     cy,
     midAngle,
@@ -181,37 +144,20 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
         <div className="h-[280px] mt-4">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              {/* Inner ring - categories */}
-              <Pie
-                data={innerRingData}
-                cx="50%"
-                cy="50%"
-                innerRadius={0}
-                outerRadius={60}
-                fill="#8884d8"
-                paddingAngle={1}
-                dataKey="value"
-              >
-                {innerRingData.map((entry, index) => (
-                  <Cell key={`cell-inner-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              
-              {/* Outer ring - subscription status */}
               <Pie
                 data={chartData}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={renderOuterLabel}
-                innerRadius={70}
-                outerRadius={100}
+                label={renderCustomLabel}
+                innerRadius={60}
+                outerRadius={120}
                 fill="#8884d8"
                 paddingAngle={2}
                 dataKey="value"
               >
                 {chartData.map((entry, index) => (
-                  <Cell key={`cell-outer-${index}`} fill={entry.color} strokeWidth={2} stroke="#fff" />
+                  <Cell key={`cell-${index}`} fill={entry.color} strokeWidth={2} stroke="#fff" />
                 ))}
               </Pie>
               <Tooltip 
@@ -229,9 +175,6 @@ const StatusDistribution: React.FC<StatusDistributionProps> = ({ subscriptions }
               />
             </PieChart>
           </ResponsiveContainer>
-          <div className="text-xs text-center text-muted-foreground mt-2">
-            <span>Inner ring: Categories | Outer ring: Subscription Status</span>
-          </div>
         </div>
       </CardContent>
     </Card>
