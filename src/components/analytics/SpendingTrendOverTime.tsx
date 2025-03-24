@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -103,14 +102,12 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
   };
 
   const openFullScreenChart = () => {
-    // Create a new window with the chart data
     const newWindow = window.open('', '_blank');
     if (!newWindow) {
       alert('Please allow pop-ups to view the full screen chart');
       return;
     }
 
-    // HTML for the new window
     const chartHtml = `
       <!DOCTYPE html>
       <html>
@@ -134,6 +131,7 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
               box-shadow: 0 1px 3px rgba(0,0,0,0.1);
               padding: 1.5rem;
               margin-bottom: 1rem;
+              height: 80vh;
             }
             h1 {
               font-size: 1.5rem;
@@ -158,15 +156,13 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
             </h1>
             <p>Visualize your subscription spending over the last 12 months</p>
             <div class="chart-container">
-              <div id="chart" style="width: 100%; height: 70vh;"></div>
+              <div id="chart" style="width: 100%; height: 100%;"></div>
             </div>
           </div>
           <script>
-            // Chart data passed from the main window
             const chartData = ${JSON.stringify(chartData)};
             const peakPoint = ${JSON.stringify(peakPoint)};
             
-            // Render the chart using Recharts
             document.addEventListener('DOMContentLoaded', function() {
               const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceDot } = Recharts;
               
@@ -239,7 +235,6 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
       </html>
     `;
 
-    // Write to the new window
     newWindow.document.write(chartHtml);
     newWindow.document.close();
   };
@@ -267,7 +262,10 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="w-full h-[350px] md:h-[400px] relative">
+        <div 
+          className="w-full h-[350px] md:h-[400px] relative cursor-pointer" 
+          onClick={openFullScreenChart}
+        >
           <ResponsiveContainer width="99%" height="100%">
             <LineChart
               data={chartData}
@@ -339,6 +337,9 @@ const SpendingTrendOverTime: React.FC<SpendingTrendOverTimeProps> = ({ subscript
               </div>
             </div>
           )}
+        </div>
+        <div className="flex justify-center mt-4">
+          <p className="text-xs text-muted-foreground">Click on the graph to view in full screen</p>
         </div>
       </CardContent>
     </Card>
