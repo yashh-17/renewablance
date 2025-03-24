@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Subscription } from "@/types/subscription";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { getSubscriptions } from "@/services/subscriptionService";
+import { getSubscriptions, calculateNextBillingDate } from "@/services/subscriptionService";
 import { Calendar } from "@/components/ui/calendar";
 import { Search, CheckCircle2, Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
@@ -71,18 +70,14 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
   const [subscriptionOptions, setSubscriptionOptions] = useState<Subscription[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Determine if we're in edit mode (either explicitly or via subscription prop)
   const effectiveEditMode = isEditMode || !!subscription;
 
-  // Filter subscription options based on search query
   const filteredOptions = subscriptionOptions.filter(sub => 
     sub.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Load subscription options for autocomplete when in explicit edit mode
   useEffect(() => {
     if (isEditMode) {
-      // Only load subscriptions for autocomplete in top bar edit mode
       const subs = availableSubscriptions.length > 0 
         ? availableSubscriptions 
         : getSubscriptions();
@@ -91,14 +86,12 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
     }
   }, [isEditMode, availableSubscriptions, open]);
 
-  // Reset search when form closes
   useEffect(() => {
     if (!open) {
       setSearchQuery("");
     }
   }, [open]);
 
-  // Load subscription data if editing
   useEffect(() => {
     if (subscription) {
       setName(subscription.name);
@@ -107,34 +100,28 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
       setBillingCycle(subscription.billingCycle);
       setStatus(subscription.status);
       
-      // Set start date if it exists
       if (subscription.startDate) {
         setStartDate(new Date(subscription.startDate));
       } else {
-        // Default to created date if no start date
         setStartDate(new Date(subscription.createdAt));
       }
       
-      // Convert usageData percentage to approximate hours if available
       if (subscription.usageData !== undefined) {
-        // Assuming 100% usage is about 30 hours per month
         const hours = Math.round((subscription.usageData / 100) * 30);
         setUsageHours(hours);
       } else {
         setUsageHours("");
       }
     } else if (!isEditMode) {
-      // Reset form for new subscription (but not for edit mode without selection)
       setName("");
       setCategory("");
       setPrice("");
       setBillingCycle("monthly");
       setStatus("active");
       setUsageHours("");
-      setStartDate(new Date()); // Default to today for new subscriptions
+      setStartDate(new Date());
     }
     
-    // Clear any previous errors when form opens
     setErrors({});
   }, [subscription, open, isEditMode]);
 
@@ -180,36 +167,27 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
       return;
     }
     
-    const nextBillingDate = new Date();
-    // Keep the existing next billing date if editing
+    const currentDate = new Date();
+    let nextBillingDate = new Date();
+    
     if (subscription?.nextBillingDate) {
-      nextBillingDate.setTime(new Date(subscription.nextBillingDate).getTime());
-    } else {
-      // Calculate next billing date based on start date and billing cycle
-      if (startDate) {
-        nextBillingDate.setTime(startDate.getTime());
-        if (billingCycle === "weekly") {
-          nextBillingDate.setDate(nextBillingDate.getDate() + 7);
-        } else if (billingCycle === "monthly") {
-          nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
-        } else if (billingCycle === "yearly") {
-          nextBillingDate.setFullYear(nextBillingDate.getFullYear() + 1);
-        }
-      }
+      const previousBillingDate = new Date(subscription.nextBillingDate);
+      nextBillingDate = calculateNextBillingDate(
+        currentDate,
+        billingCycle,
+        previousBillingDate
+      );
+    } else if (startDate) {
+      nextBillingDate = calculateNextBillingDate(startDate, billingCycle);
     }
     
-    // Calculate usageData percentage based on hours
-    // Assuming average monthly usage of 30 hours is 100%
     let usageData = 0;
     if (usageHours !== "") {
       const hours = Number(usageHours);
-      // Cap at 100% (30 hours)
       usageData = Math.min(Math.round((hours / 30) * 100), 100);
     } else if (subscription?.usageData !== undefined) {
-      // Keep existing usage data if no new input
       usageData = subscription.usageData;
     } else {
-      // Random placeholder for new subscriptions without hours
       usageData = Math.floor(Math.random() * 100);
     }
 
@@ -239,11 +217,9 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
     setBillingCycle(sub.billingCycle);
     setStatus(sub.status);
     
-    // Set start date if it exists
     if (sub.startDate) {
       setStartDate(new Date(sub.startDate));
     } else {
-      // Default to created date if no start date
       setStartDate(new Date(sub.createdAt));
     }
     
@@ -279,7 +255,7 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] animate-in fade-in-50 duration-300">
+      <DialogContent className="sm:max-w-[425px] animate-in fade-in-50 duration-300 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl">
             {getDialogTitle()}

@@ -112,6 +112,54 @@ export const getSubscriptions = (): Subscription[] => {
   return JSON.parse(localStorage.getItem(storageKey) || '[]');
 };
 
+// Calculate the next billing date based on the current date and billing cycle
+export const calculateNextBillingDate = (
+  currentDate: Date,
+  billingCycle: string,
+  previousBillingDate?: Date
+): Date => {
+  const result = new Date(currentDate);
+  
+  // Use the previous billing date's day if it exists and is valid
+  if (previousBillingDate) {
+    const previousDay = previousBillingDate.getDate();
+    result.setDate(previousDay);
+  }
+  
+  // Calculate the next billing date based on billing cycle
+  if (billingCycle === 'weekly') {
+    result.setDate(result.getDate() + 7);
+  } else if (billingCycle === 'monthly') {
+    result.setMonth(result.getMonth() + 1);
+    
+    // Handle month edge cases (e.g., Jan 31 -> Feb 28)
+    const month = result.getMonth();
+    result.setDate(1); // Temporarily set to 1st to avoid date overflow
+    result.setMonth(month); // Set the correct month
+    
+    // If original date was 29-31 and new month doesn't have those days, set to last day
+    if (previousBillingDate && previousBillingDate.getDate() > result.getDate()) {
+      // We're already at the last day of the month (since date was capped)
+      // No need to adjust further
+    }
+  } else if (billingCycle === 'yearly') {
+    result.setFullYear(result.getFullYear() + 1);
+    
+    // Handle February 29 in leap years
+    if (previousBillingDate && previousBillingDate.getMonth() === 1 && previousBillingDate.getDate() === 29) {
+      const isLeapYear = (year: number) => {
+        return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+      };
+      
+      if (!isLeapYear(result.getFullYear())) {
+        result.setDate(28); // Set to Feb 28 in non-leap years
+      }
+    }
+  }
+  
+  return result;
+};
+
 // Save a subscription (create or update)
 export const saveSubscription = (subscription: Subscription): Subscription => {
   const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -120,12 +168,51 @@ export const saveSubscription = (subscription: Subscription): Subscription => {
   const storageKey = `${STORAGE_KEY}_${currentUser.id}`;
   const subscriptions = getSubscriptions();
   
-  const isNew = !subscriptions.some(s => s.id === subscription.id);
   const index = subscriptions.findIndex((s) => s.id === subscription.id);
+  const isNew = index === -1;
+  const currentDate = new Date();
+  let oldSubscription: Subscription | null = null;
+  
+  // For existing subscriptions, check if we need to recalculate the next billing date
+  if (!isNew) {
+    oldSubscription = { ...subscriptions[index] };
+    const oldBillingCycle = oldSubscription.billingCycle;
+    const newBillingCycle = subscription.billingCycle;
+    
+    // Recalculate next billing date if billing cycle changed or if status changed from inactive to active
+    const needsRecalculation = 
+      oldBillingCycle !== newBillingCycle || 
+      (oldSubscription.status !== 'active' && oldSubscription.status !== 'trial' && 
+       (subscription.status === 'active' || subscription.status === 'trial'));
+    
+    if (needsRecalculation) {
+      const startDate = new Date(subscription.startDate || subscription.createdAt);
+      const previousBillingDate = new Date(oldSubscription.nextBillingDate);
+      
+      // Calculate the new next billing date
+      const nextBillingDate = calculateNextBillingDate(
+        currentDate,
+        subscription.billingCycle,
+        previousBillingDate
+      );
+      
+      subscription.nextBillingDate = nextBillingDate.toISOString();
+    }
+  } else {
+    // For new subscriptions, calculate the initial next billing date
+    const startDate = new Date(subscription.startDate || subscription.createdAt);
+    
+    // Calculate the next billing date based on start date and billing cycle
+    const nextBillingDate = calculateNextBillingDate(
+      startDate,
+      subscription.billingCycle
+    );
+    
+    subscription.nextBillingDate = nextBillingDate.toISOString();
+  }
   
   if (index !== -1) {
     // Update existing subscription
-    const oldSubscription = { ...subscriptions[index] };
     subscriptions[index] = subscription;
     
     // Log the update with before/after data (sanitized by the logger)

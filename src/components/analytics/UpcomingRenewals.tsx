@@ -13,6 +13,7 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState<Date[]>([]);
   const [renewalDays, setRenewalDays] = useState<Record<string, Subscription[]>>({});
+  const [tooltipVisible, setTooltipVisible] = useState<string | null>(null);
 
   // Generate calendar days for the current month
   useEffect(() => {
@@ -72,6 +73,16 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
     return 'bg-green-400 hover:bg-green-500';
   };
 
+  const handleDayMouseEnter = (dateKey: string) => {
+    if (renewalDays[dateKey]?.length > 0) {
+      setTooltipVisible(dateKey);
+    }
+  };
+
+  const handleDayMouseLeave = () => {
+    setTooltipVisible(null);
+  };
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -79,7 +90,7 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
           <Calendar className="h-5 w-5 mr-2 text-brand-500" />
           Upcoming Renewals
         </CardTitle>
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
           <CardDescription>
             Calendar view of your subscription renewals
           </CardDescription>
@@ -87,6 +98,7 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
             <button 
               onClick={prevMonth}
               className="p-1 rounded hover:bg-gray-200"
+              aria-label="Previous month"
             >
               ←
             </button>
@@ -96,6 +108,7 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
             <button 
               onClick={nextMonth}
               className="p-1 rounded hover:bg-gray-200"
+              aria-label="Next month"
             >
               →
             </button>
@@ -118,6 +131,7 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
             const dateKey = format(day, 'yyyy-MM-dd');
             const hasRenewals = dateKey in renewalDays;
             const dayRenewals = renewalDays[dateKey] || [];
+            const isTooltipVisible = tooltipVisible === dateKey;
             
             return (
               <div
@@ -125,9 +139,11 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
                 className={`
                   relative aspect-square rounded-md flex flex-col items-center justify-center
                   ${getHeatmapColor(day)}
-                  ${hasRenewals ? 'cursor-pointer group' : ''}
+                  ${hasRenewals ? 'cursor-pointer' : ''}
                 `}
                 title={hasRenewals ? `${dayRenewals.length} renewal(s)` : ''}
+                onMouseEnter={() => handleDayMouseEnter(dateKey)}
+                onMouseLeave={handleDayMouseLeave}
               >
                 <span className="text-sm">{format(day, 'd')}</span>
                 {hasRenewals && (
@@ -135,20 +151,22 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
                     <span className="text-xs text-green-700">
                       {dayRenewals.length} item{dayRenewals.length > 1 ? 's' : ''}
                     </span>
-                    <div className="absolute inset-0 invisible group-hover:visible bg-white border rounded-md shadow-lg p-2 z-10">
-                      <p className="font-semibold text-sm mb-1">
-                        {format(day, 'MMMM d, yyyy')}
-                      </p>
-                      <ul className="text-xs space-y-1">
-                        {dayRenewals.map(sub => (
-                          <li key={sub.id} className="flex items-center">
-                            <Check className="h-3 w-3 mr-1 text-green-500" />
-                            <span className="font-medium">{sub.name}</span>
-                            <span className="ml-1 text-muted-foreground">Rs.{sub.price}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    {isTooltipVisible && (
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 bg-white border rounded-md shadow-lg p-2 z-50 w-48 mt-1">
+                        <p className="font-semibold text-sm mb-1">
+                          {format(day, 'MMMM d, yyyy')}
+                        </p>
+                        <ul className="text-xs space-y-1 max-h-32 overflow-y-auto">
+                          {dayRenewals.map(sub => (
+                            <li key={sub.id} className="flex items-center">
+                              <Check className="h-3 w-3 mr-1 text-green-500 flex-shrink-0" />
+                              <span className="font-medium truncate">{sub.name}</span>
+                              <span className="ml-1 text-muted-foreground">Rs.{sub.price}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -157,7 +175,7 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
         </div>
         
         {/* Legend */}
-        <div className="flex justify-end mt-4 space-x-3">
+        <div className="flex flex-wrap justify-end mt-4 gap-3">
           <div className="flex items-center text-xs">
             <div className="h-3 w-3 rounded bg-gray-100 mr-1"></div>
             <span>No renewals</span>
