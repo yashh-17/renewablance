@@ -246,8 +246,10 @@ export const saveSubscription = (subscription: Subscription): Subscription => {
   
   localStorage.setItem(storageKey, JSON.stringify(subscriptions));
   
+  console.log('Subscription saved, triggering events');
+  
   // Dispatch events to notify components
-  triggerSubscriptionUpdatedEvents(storageKey);
+  triggerSubscriptionUpdatedEvents(storageKey, isNew);
   
   return subscription;
 };
@@ -275,25 +277,40 @@ export const deleteSubscription = (id: string): boolean => {
   }
   
   // Dispatch events to notify components
-  triggerSubscriptionUpdatedEvents(storageKey);
+  triggerSubscriptionUpdatedEvents(storageKey, false);
   
   return true;
 };
 
 // Helper function to trigger all relevant events
-function triggerSubscriptionUpdatedEvents(storageKey: string) {
+function triggerSubscriptionUpdatedEvents(storageKey: string, isNew: boolean = false) {
   // Dispatch a storage event to notify other components about the change
   window.dispatchEvent(new StorageEvent('storage', {
     key: storageKey,
   }));
   
+  console.log('Dispatching subscription-updated event');
+  
   // Dispatch a custom event for more immediate updates
   window.dispatchEvent(new CustomEvent('subscription-updated'));
   
-  // Dispatch a renewal check event
+  // Dispatch a renewal check event - with slight delay to ensure all components are updated
   setTimeout(() => {
+    console.log('Dispatching renewal-detected event');
     window.dispatchEvent(new CustomEvent('renewal-detected'));
-  }, 500);
+  }, 300);
+  
+  // For new subscriptions, dispatch another renewal event after a longer delay
+  // to ensure any new component that may have loaded after the first event also gets notified
+  if (isNew) {
+    setTimeout(() => {
+      console.log('Dispatching delayed renewal-detected event for new subscription');
+      window.dispatchEvent(new CustomEvent('renewal-detected'));
+      
+      // Dispatch another subscription-updated event to ensure all components are updated
+      window.dispatchEvent(new CustomEvent('subscription-updated'));
+    }, 1000);
+  }
 }
 
 // Add this function to get a subscription by ID

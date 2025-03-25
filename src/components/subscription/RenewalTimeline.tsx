@@ -23,8 +23,10 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
     twoWeeks: [],
     month: []
   });
+  const [forceUpdate, setForceUpdate] = useState(0);
 
   const loadRenewals = () => {
+    console.log('Loading renewals in RenewalTimeline');
     const weekRenewals = getSubscriptionsDueForRenewal(7);
     const twoWeeksRenewals = getSubscriptionsDueForRenewal(14).filter(
       sub => !weekRenewals.some(weekSub => weekSub.id === sub.id)
@@ -65,20 +67,24 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
     const handleStorageChange = (event: StorageEvent) => {
       // Check if the change is related to subscriptions
       if (event.key && event.key.includes('subscriptions_')) {
+        console.log('Storage change detected in RenewalTimeline');
         loadRenewals();
       }
     };
     
     // Custom event for more immediate updates
     const handleCustomEvent = () => {
+      console.log('Subscription updated event received in RenewalTimeline');
       loadRenewals();
+      // Force a re-render for immediate UI update
+      setForceUpdate(prev => prev + 1);
     };
     
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('subscription-updated', handleCustomEvent);
     
-    // Set up polling to regularly check for renewals (every 15 seconds)
-    const intervalId = setInterval(loadRenewals, 15000);
+    // Set up polling to regularly check for renewals (every 10 seconds)
+    const intervalId = setInterval(loadRenewals, 10000);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
@@ -118,7 +124,7 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
         </h3>
         <div className="space-y-2">
           {subscriptions.map(sub => (
-            <div key={sub.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-md hover:bg-muted/50 transition-colors">
+            <div key={`${sub.id}-${forceUpdate}`} className="flex items-center justify-between p-2 bg-muted/30 rounded-md hover:bg-muted/50 transition-colors">
               <div className="flex items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${sub.iconBg || 'bg-brand-600'} mr-3`}>
                   {sub.icon || sub.name.charAt(0).toUpperCase()}

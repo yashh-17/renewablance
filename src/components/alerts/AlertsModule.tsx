@@ -47,16 +47,19 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     count: number;
     subscriptionIds: string[];
     checkedRenewalsDates: Record<string, boolean>;
+    processedAlertIds: Set<string>;
   }>({ 
     totalSpend: 0, 
     count: 0, 
     subscriptionIds: [],
-    checkedRenewalsDates: {} 
+    checkedRenewalsDates: {},
+    processedAlertIds: new Set()
   });
 
   const generateAlerts = useCallback((currentSubscriptions: Subscription[], forceRegenerate = false) => {
     const now = new Date();
     const newAlerts: Alert[] = [];
+    const processedAlertIds = new Set(lastData.processedAlertIds);
     
     const upcomingRenewals = getSubscriptionsDueForRenewal(30);
     
@@ -68,6 +71,10 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       );
       
       const alertId = `renewal-${sub.id}-${daysToRenewal}-${renewalDate.toISOString()}`;
+      
+      if (!forceRegenerate && processedAlertIds.has(alertId)) {
+        return;
+      }
       
       const checkedKey = `${sub.id}-${renewalDate.toISOString()}`;
       
@@ -87,6 +94,8 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
             action: () => onEditSubscription && onEditSubscription(sub),
             actionLabel: 'View Details'
           });
+          
+          processedAlertIds.add(alertId);
           
           if (daysToRenewal <= 3 && !lastData.checkedRenewalsDates[checkedKey]) {
             uiToast({
@@ -124,36 +133,46 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       const spendingIncrease = totalMonthlySpend - lastData.totalSpend;
       const percentIncrease = (spendingIncrease / lastData.totalSpend) * 100;
       
-      if (spendingIncrease > 0 && percentIncrease > 15) {
-        newAlerts.push({
-          id: `spending-${now.getTime()}`,
-          type: 'spending',
-          title: 'Unusual spending increase detected',
-          message: `Your monthly subscription spending has increased by ${percentIncrease.toFixed(0)}% (₹${spendingIncrease.toFixed(2)}) compared to your previous total.`,
-          date: now,
-          read: false,
-          action: () => {
-            if (onEditSubscription) {
-              const mostExpensive = currentSubscriptions
-                .filter(sub => !lastData.subscriptionIds.includes(sub.id))
-                .sort((a, b) => b.price - a.price)[0];
-              
-              if (mostExpensive) {
-                onEditSubscription(mostExpensive);
+      const spendingAlertId = `spending-${now.getTime()}`;
+      
+      if (!processedAlertIds.has(spendingAlertId)) {
+        if (spendingIncrease > 0 && percentIncrease > 15) {
+          newAlerts.push({
+            id: spendingAlertId,
+            type: 'spending',
+            title: 'Unusual spending increase detected',
+            message: `Your monthly subscription spending has increased by ${percentIncrease.toFixed(0)}% (₹${spendingIncrease.toFixed(2)}) compared to your previous total.`,
+            date: now,
+            read: false,
+            action: () => {
+              if (onEditSubscription) {
+                const mostExpensive = currentSubscriptions
+                  .filter(sub => !lastData.subscriptionIds.includes(sub.id))
+                  .sort((a, b) => b.price - a.price)[0];
+                
+                if (mostExpensive) {
+                  onEditSubscription(mostExpensive);
+                }
               }
-            }
-          },
-          actionLabel: 'Review Expenses'
-        });
-      } else if (spendingIncrease < 0 && Math.abs(percentIncrease) > 15) {
-        newAlerts.push({
-          id: `spending-decrease-${now.getTime()}`,
-          type: 'info',
-          title: 'Significant spending decrease',
-          message: `Your monthly subscription spending has decreased by ${Math.abs(percentIncrease).toFixed(0)}% (₹${Math.abs(spendingIncrease).toFixed(2)}).`,
-          date: now,
-          read: false
-        });
+            },
+            actionLabel: 'Review Expenses'
+          });
+          
+          processedAlertIds.add(spendingAlertId);
+        } else if (spendingIncrease < 0 && Math.abs(percentIncrease) > 15) {
+          const decreaseAlertId = `spending-decrease-${now.getTime()}`;
+          
+          newAlerts.push({
+            id: decreaseAlertId,
+            type: 'info',
+            title: 'Significant spending decrease',
+            message: `Your monthly subscription spending has decreased by ${Math.abs(percentIncrease).toFixed(0)}% (₹${Math.abs(spendingIncrease).toFixed(2)}).`,
+            date: now,
+            read: false
+          });
+          
+          processedAlertIds.add(decreaseAlertId);
+        }
       }
     }
     
@@ -164,45 +183,57 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
         const newSubscriptions = currentSubscriptions.filter(sub => newSubIds.includes(sub.id));
         
         newSubscriptions.forEach(newSub => {
-          newAlerts.push({
-            id: `new-sub-${newSub.id}-${now.getTime()}`,
-            type: 'newSubscription',
-            title: 'New subscription added',
-            message: `You've added a new subscription: ${newSub.name} (₹${newSub.price.toFixed(2)}/${newSub.billingCycle}).`,
-            date: now,
-            read: false,
-            action: () => onEditSubscription && onEditSubscription(newSub),
-            actionLabel: 'View Details'
-          });
+          const newSubAlertId = `new-sub-${newSub.id}-${now.getTime()}`;
           
-          const renewalDate = new Date(newSub.nextBillingDate);
-          const daysToRenewal = Math.ceil(
-            (renewalDate.getTime() - now.getTime()) / 
-            (1000 * 60 * 60 * 24)
-          );
-          
-          if (daysToRenewal <= 30) {
-            let urgency = '';
-            if (daysToRenewal <= 3) urgency = 'Urgent: ';
-            else if (daysToRenewal <= 7) urgency = 'Soon: ';
-            
+          if (!processedAlertIds.has(newSubAlertId)) {
             newAlerts.push({
-              id: `renewal-new-${newSub.id}-${daysToRenewal}-${now.getTime()}`,
-              type: 'renewal',
-              title: `${urgency}${newSub.name} renewal reminder (new subscription)`,
-              message: `Your new subscription to ${newSub.name} will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}. The charge will be ₹${newSub.price.toFixed(2)}.`,
+              id: newSubAlertId,
+              type: 'newSubscription',
+              title: 'New subscription added',
+              message: `You've added a new subscription: ${newSub.name} (₹${newSub.price.toFixed(2)}/${newSub.billingCycle}).`,
               date: now,
               read: false,
               action: () => onEditSubscription && onEditSubscription(newSub),
               actionLabel: 'View Details'
             });
             
-            if (daysToRenewal <= 3) {
-              uiToast({
-                title: `${newSub.name} renewal reminder`,
-                description: `Your new subscription will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}.`,
-                variant: "default"
-              });
+            processedAlertIds.add(newSubAlertId);
+            
+            const renewalDate = new Date(newSub.nextBillingDate);
+            const daysToRenewal = Math.ceil(
+              (renewalDate.getTime() - now.getTime()) / 
+              (1000 * 60 * 60 * 24)
+            );
+            
+            if (daysToRenewal <= 30) {
+              let urgency = '';
+              if (daysToRenewal <= 3) urgency = 'Urgent: ';
+              else if (daysToRenewal <= 7) urgency = 'Soon: ';
+              
+              const renewalAlertId = `renewal-new-${newSub.id}-${daysToRenewal}-${now.getTime()}`;
+              
+              if (!processedAlertIds.has(renewalAlertId)) {
+                newAlerts.push({
+                  id: renewalAlertId,
+                  type: 'renewal',
+                  title: `${urgency}${newSub.name} renewal reminder (new subscription)`,
+                  message: `Your new subscription to ${newSub.name} will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}. The charge will be ₹${newSub.price.toFixed(2)}.`,
+                  date: now,
+                  read: false,
+                  action: () => onEditSubscription && onEditSubscription(newSub),
+                  actionLabel: 'View Details'
+                });
+                
+                processedAlertIds.add(renewalAlertId);
+                
+                if (daysToRenewal <= 3) {
+                  uiToast({
+                    title: `${newSub.name} renewal reminder`,
+                    description: `Your new subscription will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}.`,
+                    variant: "default"
+                  });
+                }
+              }
             }
           }
         });
@@ -219,36 +250,31 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     if (potentialMissedPayments.length > 0) {
       potentialMissedPayments.forEach(sub => {
         const daysMissed = Math.floor((now.getTime() - new Date(sub.nextBillingDate).getTime()) / (24 * 60 * 60 * 1000));
+        const missedAlertId = `missed-payment-${sub.id}-${daysMissed}-${now.getTime()}`;
         
-        newAlerts.push({
-          id: `missed-payment-${sub.id}-${now.getTime()}`,
-          type: 'missedPayment',
-          title: 'Possible missed payment',
-          message: `Your ${sub.name} subscription payment was due ${daysMissed} day${daysMissed !== 1 ? 's' : ''} ago. Please check your payment method.`,
-          date: now,
-          read: false,
-          action: () => onEditSubscription && onEditSubscription(sub),
-          actionLabel: 'Review Subscription'
-        });
+        if (!processedAlertIds.has(missedAlertId)) {
+          newAlerts.push({
+            id: missedAlertId,
+            type: 'missedPayment',
+            title: 'Possible missed payment',
+            message: `Your ${sub.name} subscription payment was due ${daysMissed} day${daysMissed !== 1 ? 's' : ''} ago. Please check your payment method.`,
+            date: now,
+            read: false,
+            action: () => onEditSubscription && onEditSubscription(sub),
+            actionLabel: 'Review Subscription'
+          });
+          
+          processedAlertIds.add(missedAlertId);
+        }
       });
     }
     
     setLastData({
-      totalSpend: currentSubscriptions.reduce((total, sub) => {
-        if (sub.status !== 'active' && sub.status !== 'trial') return total;
-        
-        if (sub.billingCycle === "monthly") {
-          return total + sub.price;
-        } else if (sub.billingCycle === "yearly") {
-          return total + (sub.price / 12);
-        } else if (sub.billingCycle === "weekly") {
-          return total + (sub.price * 4.33);
-        }
-        return total;
-      }, 0),
+      totalSpend: totalMonthlySpend,
       count: currentSubscriptions.length,
       subscriptionIds: currentSubscriptions.map(sub => sub.id),
-      checkedRenewalsDates: checkedRenewalsDates
+      checkedRenewalsDates: checkedRenewalsDates,
+      processedAlertIds: processedAlertIds
     });
     
     setAlerts(prevAlerts => {
@@ -278,7 +304,12 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   }, [generateAlerts]);
 
   useEffect(() => {
-    forceRefresh();
+    const currentSubscriptions = getSubscriptions();
+    setSubscriptions(currentSubscriptions);
+    
+    setTimeout(() => {
+      generateAlerts(currentSubscriptions, true);
+    }, 100);
     
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key && event.key.includes('subscriptions_')) {
@@ -287,10 +318,12 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     };
     
     const handleCustomEvent = () => {
+      console.log('Subscription updated event received in AlertsModule');
       forceRefresh();
     };
     
     const handleRenewalDetected = () => {
+      console.log('Renewal detected event received in AlertsModule');
       forceRefresh();
     };
     

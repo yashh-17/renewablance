@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Check } from 'lucide-react';
@@ -13,6 +14,7 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
   const [calendarDays, setCalendarDays] = useState<Date[]>([]);
   const [renewalDays, setRenewalDays] = useState<Record<string, Subscription[]>>({});
   const [tooltipVisible, setTooltipVisible] = useState<string | null>(null);
+  const [forceUpdate, setForceUpdate] = useState(0);
 
   // Generate calendar days for the current month
   useEffect(() => {
@@ -24,6 +26,7 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
 
   // Map subscriptions to renewal days
   useEffect(() => {
+    console.log('Mapping subscriptions to renewal days in UpcomingRenewals', subscriptions.length);
     const renewals: Record<string, Subscription[]> = {};
     
     subscriptions.forEach(subscription => {
@@ -40,15 +43,15 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
     });
     
     setRenewalDays(renewals);
-  }, [subscriptions]);
+  }, [subscriptions, forceUpdate]);
 
   // Listen for subscription updates
   useEffect(() => {
     // Additional event listener for custom events
     const handleCustomEvent = () => {
-      // The parent component will pass updated subscriptions as props
-      // This is just an extra measure to ensure the UI refreshes
-      setRenewalDays(prevRenewals => ({...prevRenewals}));
+      console.log('Subscription updated event received in UpcomingRenewals');
+      // Force a re-render to ensure the UI refreshes
+      setForceUpdate(prev => prev + 1);
     };
     
     window.addEventListener('subscription-updated', handleCustomEvent);
@@ -150,7 +153,7 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
             
             return (
               <div
-                key={index}
+                key={`${index}-${forceUpdate}`}
                 className={`
                   relative aspect-square rounded-md flex flex-col items-center justify-center
                   ${getHeatmapColor(day)}
@@ -167,13 +170,13 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
                       {dayRenewals.length} item{dayRenewals.length > 1 ? 's' : ''}
                     </span>
                     {isTooltipVisible && (
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 bg-white border rounded-md shadow-lg p-2 z-50 w-48 mt-1">
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 bg-white border rounded-md shadow-lg p-2 z-[100] w-48 mt-1">
                         <p className="font-semibold text-sm mb-1">
                           {format(day, 'MMMM d, yyyy')}
                         </p>
                         <ul className="text-xs space-y-1 max-h-32 overflow-y-auto">
                           {dayRenewals.map(sub => (
-                            <li key={sub.id} className="flex items-center">
+                            <li key={`${sub.id}-${forceUpdate}`} className="flex items-center">
                               <Check className="h-3 w-3 mr-1 text-green-500 flex-shrink-0" />
                               <span className="font-medium truncate">{sub.name}</span>
                               <span className="ml-1 text-muted-foreground">Rs.{sub.price}</span>
