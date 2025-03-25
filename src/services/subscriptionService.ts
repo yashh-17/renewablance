@@ -1,3 +1,4 @@
+
 import { Subscription } from '@/types/subscription';
 import secureLogger, { LogEventType } from './loggingService';
 
@@ -209,6 +210,11 @@ export const saveSubscription = (subscription: Subscription): Subscription => {
     );
     
     subscription.nextBillingDate = nextBillingDate.toISOString();
+    
+    // Assign a new unique ID if one doesn't exist
+    if (!subscription.id) {
+      subscription.id = Date.now().toString();
+    }
   }
   
   if (index !== -1) {
@@ -240,13 +246,8 @@ export const saveSubscription = (subscription: Subscription): Subscription => {
   
   localStorage.setItem(storageKey, JSON.stringify(subscriptions));
   
-  // Dispatch a storage event to notify other components about the change
-  window.dispatchEvent(new StorageEvent('storage', {
-    key: storageKey,
-  }));
-  
-  // Dispatch a custom event for more immediate updates
-  window.dispatchEvent(new CustomEvent('subscription-updated'));
+  // Dispatch events to notify components
+  triggerSubscriptionUpdatedEvents(storageKey);
   
   return subscription;
 };
@@ -273,6 +274,14 @@ export const deleteSubscription = (id: string): boolean => {
     );
   }
   
+  // Dispatch events to notify components
+  triggerSubscriptionUpdatedEvents(storageKey);
+  
+  return true;
+};
+
+// Helper function to trigger all relevant events
+function triggerSubscriptionUpdatedEvents(storageKey: string) {
   // Dispatch a storage event to notify other components about the change
   window.dispatchEvent(new StorageEvent('storage', {
     key: storageKey,
@@ -281,8 +290,11 @@ export const deleteSubscription = (id: string): boolean => {
   // Dispatch a custom event for more immediate updates
   window.dispatchEvent(new CustomEvent('subscription-updated'));
   
-  return true;
-};
+  // Dispatch a renewal check event
+  setTimeout(() => {
+    window.dispatchEvent(new CustomEvent('renewal-detected'));
+  }, 500);
+}
 
 // Add this function to get a subscription by ID
 export const getSubscriptionById = (id: string): Subscription | null => {

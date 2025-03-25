@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -22,6 +21,7 @@ import { Subscription } from '@/types/subscription';
 import { getSubscriptions, getSubscriptionsDueForRenewal } from '@/services/subscriptionService';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { useToast } from "@/hooks/use-toast";
 
 interface Alert {
   id: string;
@@ -39,19 +39,25 @@ interface AlertsModuleProps {
 }
 
 const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
+  const { toast: uiToast } = useToast();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [lastData, setLastData] = useState<{
     totalSpend: number;
     count: number;
     subscriptionIds: string[];
-  }>({ totalSpend: 0, count: 0, subscriptionIds: [] });
+    checkedRenewalsDates: Record<string, boolean>;
+  }>({ 
+    totalSpend: 0, 
+    count: 0, 
+    subscriptionIds: [],
+    checkedRenewalsDates: {} 
+  });
 
-  const generateAlerts = (currentSubscriptions: Subscription[], forceRegenerate = false) => {
+  const generateAlerts = useCallback((currentSubscriptions: Subscription[], forceRegenerate = false) => {
     const now = new Date();
     const newAlerts: Alert[] = [];
     
-    // 1. Renewal alerts - subscriptions due for renewal in the next 3, 7, 14, or 30 days
     const upcomingRenewals = getSubscriptionsDueForRenewal(30);
     
     upcomingRenewals.forEach(sub => {
@@ -61,26 +67,44 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
         (1000 * 60 * 60 * 24)
       );
       
-      // Generate alerts for critical periods (3, 7, 14, 30 days)
-      if (daysToRenewal <= 3 || daysToRenewal === 7 || daysToRenewal === 14 || daysToRenewal === 30) {
-        let urgency = '';
-        if (daysToRenewal <= 3) urgency = 'Urgent: ';
-        else if (daysToRenewal <= 7) urgency = 'Soon: ';
-        
-        newAlerts.push({
-          id: `renewal-${sub.id}-${daysToRenewal}-days`,
-          type: 'renewal',
-          title: `${urgency}${sub.name} renewal reminder`,
-          message: `Your subscription to ${sub.name} will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}. The charge will be ₹${sub.price.toFixed(2)}.`,
-          date: now,
-          read: false,
-          action: () => onEditSubscription && onEditSubscription(sub),
-          actionLabel: 'View Details'
-        });
+      const alertId = `renewal-${sub.id}-${daysToRenewal}-${renewalDate.toISOString()}`;
+      
+      const checkedKey = `${sub.id}-${renewalDate.toISOString()}`;
+      
+      if (forceRegenerate || !lastData.checkedRenewalsDates[checkedKey]) {
+        if (daysToRenewal <= 3 || daysToRenewal === 7 || daysToRenewal === 14 || daysToRenewal === 30) {
+          let urgency = '';
+          if (daysToRenewal <= 3) urgency = 'Urgent: ';
+          else if (daysToRenewal <= 7) urgency = 'Soon: ';
+          
+          newAlerts.push({
+            id: alertId,
+            type: 'renewal',
+            title: `${urgency}${sub.name} renewal reminder`,
+            message: `Your subscription to ${sub.name} will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}. The charge will be ₹${sub.price.toFixed(2)}.`,
+            date: now,
+            read: false,
+            action: () => onEditSubscription && onEditSubscription(sub),
+            actionLabel: 'View Details'
+          });
+          
+          if (daysToRenewal <= 3 && !lastData.checkedRenewalsDates[checkedKey]) {
+            uiToast({
+              title: `${sub.name} renewal reminder`,
+              description: `Your subscription will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}.`,
+              variant: "default"
+            });
+          }
+        }
       }
     });
     
-    // 2. Calculate current metrics
+    const checkedRenewalsDates = { ...lastData.checkedRenewalsDates };
+    upcomingRenewals.forEach(sub => {
+      const renewalDate = new Date(sub.nextBillingDate);
+      checkedRenewalsDates[`${sub.id}-${renewalDate.toISOString()}`] = true;
+    });
+    
     const totalMonthlySpend = currentSubscriptions.reduce((total, sub) => {
       if (sub.status !== 'active' && sub.status !== 'trial') return total;
       
@@ -94,10 +118,8 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       return total;
     }, 0);
     
-    // Get current subscription IDs
     const currentIds = currentSubscriptions.map(sub => sub.id);
     
-    // 3. Check for unusual activity (significant spending increase)
     if (lastData.totalSpend > 0 && (forceRegenerate || totalMonthlySpend !== lastData.totalSpend)) {
       const spendingIncrease = totalMonthlySpend - lastData.totalSpend;
       const percentIncrease = (spendingIncrease / lastData.totalSpend) * 100;
@@ -112,7 +134,6 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
           read: false,
           action: () => {
             if (onEditSubscription) {
-              // Find the most expensive subscription
               const mostExpensive = currentSubscriptions
                 .filter(sub => !lastData.subscriptionIds.includes(sub.id))
                 .sort((a, b) => b.price - a.price)[0];
@@ -136,7 +157,6 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       }
     }
     
-    // 4. Check for new subscriptions
     if (lastData.subscriptionIds.length > 0) {
       const newSubIds = currentIds.filter(id => !lastData.subscriptionIds.includes(id));
       
@@ -154,16 +174,46 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
             action: () => onEditSubscription && onEditSubscription(newSub),
             actionLabel: 'View Details'
           });
+          
+          const renewalDate = new Date(newSub.nextBillingDate);
+          const daysToRenewal = Math.ceil(
+            (renewalDate.getTime() - now.getTime()) / 
+            (1000 * 60 * 60 * 24)
+          );
+          
+          if (daysToRenewal <= 30) {
+            let urgency = '';
+            if (daysToRenewal <= 3) urgency = 'Urgent: ';
+            else if (daysToRenewal <= 7) urgency = 'Soon: ';
+            
+            newAlerts.push({
+              id: `renewal-new-${newSub.id}-${daysToRenewal}-${now.getTime()}`,
+              type: 'renewal',
+              title: `${urgency}${newSub.name} renewal reminder (new subscription)`,
+              message: `Your new subscription to ${newSub.name} will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}. The charge will be ₹${newSub.price.toFixed(2)}.`,
+              date: now,
+              read: false,
+              action: () => onEditSubscription && onEditSubscription(newSub),
+              actionLabel: 'View Details'
+            });
+            
+            if (daysToRenewal <= 3) {
+              uiToast({
+                title: `${newSub.name} renewal reminder`,
+                description: `Your new subscription will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}.`,
+                variant: "default"
+              });
+            }
+          }
         });
       }
     }
     
-    // 5. Check for missed payments
     const potentialMissedPayments = currentSubscriptions.filter(sub => {
       if (sub.status !== 'active') return false;
       
       const nextBillingDate = new Date(sub.nextBillingDate);
-      return nextBillingDate < now && (now.getTime() - nextBillingDate.getTime()) < (7 * 24 * 60 * 60 * 1000); // Within last 7 days
+      return nextBillingDate < now && (now.getTime() - nextBillingDate.getTime()) < (7 * 24 * 60 * 60 * 1000);
     });
     
     if (potentialMissedPayments.length > 0) {
@@ -183,7 +233,6 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       });
     }
     
-    // Update last data
     setLastData({
       totalSpend: currentSubscriptions.reduce((total, sub) => {
         if (sub.status !== 'active' && sub.status !== 'trial') return total;
@@ -198,12 +247,11 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
         return total;
       }, 0),
       count: currentSubscriptions.length,
-      subscriptionIds: currentSubscriptions.map(sub => sub.id)
+      subscriptionIds: currentSubscriptions.map(sub => sub.id),
+      checkedRenewalsDates: checkedRenewalsDates
     });
     
-    // Merge with existing unread alerts 
     setAlerts(prevAlerts => {
-      // Keep unread alerts that are not duplicates
       const oldAlerts = prevAlerts.filter(alert => 
         !alert.read && 
         !newAlerts.some(newAlert => newAlert.id === alert.id)
@@ -213,43 +261,52 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
         b.date.getTime() - a.date.getTime()
       );
     });
-  };
+  }, [onEditSubscription, lastData, uiToast]);
+
+  const loadData = useCallback(() => {
+    console.log('Loading subscription data for alerts');
+    const currentSubscriptions = getSubscriptions();
+    setSubscriptions(currentSubscriptions);
+    generateAlerts(currentSubscriptions, false);
+  }, [generateAlerts]);
+
+  const forceRefresh = useCallback(() => {
+    console.log('Force refreshing alerts');
+    const currentSubscriptions = getSubscriptions();
+    setSubscriptions(currentSubscriptions);
+    generateAlerts(currentSubscriptions, true);
+  }, [generateAlerts]);
 
   useEffect(() => {
-    const loadData = () => {
-      const currentSubscriptions = getSubscriptions();
-      setSubscriptions(currentSubscriptions);
-      generateAlerts(currentSubscriptions, true);
-    };
+    forceRefresh();
     
-    // Initial load
-    loadData();
-    
-    // Listen for subscription updates via localStorage changes
     const handleStorageChange = (event: StorageEvent) => {
-      // Check if the change is related to subscriptions
       if (event.key && event.key.includes('subscriptions_')) {
-        loadData();
+        forceRefresh();
       }
     };
     
-    // Custom event for more immediate updates
     const handleCustomEvent = () => {
-      loadData();
+      forceRefresh();
+    };
+    
+    const handleRenewalDetected = () => {
+      forceRefresh();
     };
     
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('subscription-updated', handleCustomEvent);
+    window.addEventListener('renewal-detected', handleRenewalDetected);
     
-    // Set up polling to regularly check for new alerts (every 30 seconds)
-    const intervalId = setInterval(loadData, 30000);
+    const intervalId = setInterval(loadData, 10000);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('subscription-updated', handleCustomEvent);
+      window.removeEventListener('renewal-detected', handleRenewalDetected);
       clearInterval(intervalId);
     };
-  }, []);
+  }, [loadData, forceRefresh]);
 
   const markAsRead = (alertId: string) => {
     setAlerts(prevAlerts => prevAlerts.map(alert => 

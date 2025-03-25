@@ -16,9 +16,11 @@ import { ArrowRight, CheckCircle2, AlertCircle, IndianRupee } from 'lucide-react
 import { Subscription } from '@/types/subscription';
 import { getSubscriptions, saveSubscription, deleteSubscription } from '@/services/subscriptionService';
 import { getRecommendations } from '@/services/recommendationService';
+import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { toast: uiToast } = useToast();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -123,6 +125,8 @@ const Dashboard = () => {
       saveSubscription(subscription);
       loadSubscriptions();
       
+      const isNewSubscription = !selectedSubscription && !isTopBarEditMode;
+      
       toast.success(
         selectedSubscription || (isTopBarEditMode && subscription.id !== Date.now().toString())
           ? `Updated ${subscription.name} subscription` 
@@ -133,8 +137,34 @@ const Dashboard = () => {
         }
       );
       
+      // If it's a new subscription, check if it has an upcoming renewal
+      if (isNewSubscription) {
+        const nextBillingDate = new Date(subscription.nextBillingDate);
+        const now = new Date();
+        const daysToRenewal = Math.ceil(
+          (nextBillingDate.getTime() - now.getTime()) / 
+          (1000 * 60 * 60 * 24)
+        );
+        
+        // If it's renewing soon, let the user know
+        if (daysToRenewal <= 30) {
+          setTimeout(() => {
+            uiToast({
+              title: "Renewal Notice",
+              description: `Your new subscription to ${subscription.name} will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}.`,
+              variant: "default",
+            });
+          }, 1000);
+        }
+      }
+      
       // Dispatch custom event to immediately update components
       window.dispatchEvent(new CustomEvent('subscription-updated'));
+      
+      // If we're on the overview tab, make sure we stay there to see the notifications
+      if (isNewSubscription && activeTab !== 'overview') {
+        setActiveTab('overview');
+      }
     } catch (error) {
       toast.error('Error saving subscription');
       console.error(error);

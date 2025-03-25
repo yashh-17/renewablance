@@ -6,12 +6,14 @@ import { Subscription } from '@/types/subscription';
 import { Clock, AlertCircle, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useToast } from "@/hooks/use-toast";
 
 interface RenewalTimelineProps {
   onEditSubscription?: (subscription: Subscription) => void;
 }
 
 const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription }) => {
+  const { toast } = useToast();
   const [renewals, setRenewals] = useState<{
     week: Subscription[];
     twoWeeks: Subscription[];
@@ -32,11 +34,27 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
              !twoWeeksRenewals.some(twoWeekSub => twoWeekSub.id === sub.id)
     );
 
-    setRenewals({
+    const newRenewals = {
       week: weekRenewals,
       twoWeeks: twoWeeksRenewals,
       month: monthRenewals
+    };
+    
+    setRenewals(newRenewals);
+    
+    // Check if any new immediate renewals (within 3 days) were loaded
+    const hasImmediateRenewals = weekRenewals.some(sub => {
+      const daysToRenewal = Math.ceil(
+        (new Date(sub.nextBillingDate).getTime() - new Date().getTime()) / 
+        (1000 * 60 * 60 * 24)
+      );
+      return daysToRenewal <= 3;
     });
+    
+    if (hasImmediateRenewals) {
+      // Dispatch a custom event to notify the AlertsModule
+      window.dispatchEvent(new CustomEvent('renewal-detected'));
+    }
   };
 
   useEffect(() => {
@@ -59,8 +77,8 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('subscription-updated', handleCustomEvent);
     
-    // Set up polling to regularly check for renewals (every 30 seconds)
-    const intervalId = setInterval(loadRenewals, 30000);
+    // Set up polling to regularly check for renewals (every 15 seconds)
+    const intervalId = setInterval(loadRenewals, 15000);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
