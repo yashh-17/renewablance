@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
@@ -134,10 +133,8 @@ const Dashboard = () => {
         }
       );
       
-      // Trigger storage event to notify other components about the change
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: `subscriptions_${JSON.parse(localStorage.getItem('currentUser') || '{}').id}`,
-      }));
+      // Dispatch custom event to immediately update components
+      window.dispatchEvent(new CustomEvent('subscription-updated'));
     } catch (error) {
       toast.error('Error saving subscription');
       console.error(error);
@@ -149,10 +146,8 @@ const Dashboard = () => {
       deleteSubscription(id);
       loadSubscriptions();
       
-      // Trigger storage event to notify other components about the change
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: `subscriptions_${JSON.parse(localStorage.getItem('currentUser') || '{}').id}`,
-      }));
+      // Dispatch custom event to immediately update components
+      window.dispatchEvent(new CustomEvent('subscription-updated'));
     } catch (error) {
       toast.error('Error deleting subscription');
       console.error(error);

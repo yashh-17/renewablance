@@ -245,6 +245,9 @@ export const saveSubscription = (subscription: Subscription): Subscription => {
     key: storageKey,
   }));
   
+  // Dispatch a custom event for more immediate updates
+  window.dispatchEvent(new CustomEvent('subscription-updated'));
+  
   return subscription;
 };
 
@@ -275,6 +278,9 @@ export const deleteSubscription = (id: string): boolean => {
     key: storageKey,
   }));
   
+  // Dispatch a custom event for more immediate updates
+  window.dispatchEvent(new CustomEvent('subscription-updated'));
+  
   return true;
 };
 
@@ -296,7 +302,7 @@ export const getSubscriptionsDueForRenewal = (days: number): Subscription[] => {
     
     const nextBillingDate = new Date(sub.nextBillingDate);
     return nextBillingDate >= now && nextBillingDate <= futureDate;
-  });
+  }).sort((a, b) => new Date(a.nextBillingDate).getTime() - new Date(b.nextBillingDate).getTime());
 };
 
 // Get subscriptions by status

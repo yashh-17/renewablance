@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Check } from 'lucide-react';
@@ -42,6 +41,22 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
     
     setRenewalDays(renewals);
   }, [subscriptions]);
+
+  // Listen for subscription updates
+  useEffect(() => {
+    // Additional event listener for custom events
+    const handleCustomEvent = () => {
+      // The parent component will pass updated subscriptions as props
+      // This is just an extra measure to ensure the UI refreshes
+      setRenewalDays(prevRenewals => ({...prevRenewals}));
+    };
+    
+    window.addEventListener('subscription-updated', handleCustomEvent);
+    
+    return () => {
+      window.removeEventListener('subscription-updated', handleCustomEvent);
+    };
+  }, []);
 
   // Navigate to previous month
   const prevMonth = () => {

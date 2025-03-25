@@ -40,15 +40,33 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
   };
 
   useEffect(() => {
+    // Initial load
     loadRenewals();
     
     // Listen for subscription updates
-    const handleStorageChange = () => {
+    const handleStorageChange = (event: StorageEvent) => {
+      // Check if the change is related to subscriptions
+      if (event.key && event.key.includes('subscriptions_')) {
+        loadRenewals();
+      }
+    };
+    
+    // Custom event for more immediate updates
+    const handleCustomEvent = () => {
       loadRenewals();
     };
     
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('subscription-updated', handleCustomEvent);
+    
+    // Set up polling to regularly check for renewals (every 30 seconds)
+    const intervalId = setInterval(loadRenewals, 30000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('subscription-updated', handleCustomEvent);
+      clearInterval(intervalId);
+    };
   }, []);
 
   const formatDate = (dateString: string) => {

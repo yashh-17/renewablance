@@ -61,14 +61,14 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
         (1000 * 60 * 60 * 24)
       );
       
-      // Only generate alerts for 7, 14, or 30 day periods
-      if (daysToRenewal <= 7 || daysToRenewal === 14 || daysToRenewal === 30) {
+      // Generate alerts for critical periods (3, 7, 14, 30 days)
+      if (daysToRenewal <= 3 || daysToRenewal === 7 || daysToRenewal === 14 || daysToRenewal === 30) {
         let urgency = '';
         if (daysToRenewal <= 3) urgency = 'Urgent: ';
         else if (daysToRenewal <= 7) urgency = 'Soon: ';
         
         newAlerts.push({
-          id: `renewal-${sub.id}-${now.getTime()}`,
+          id: `renewal-${sub.id}-${daysToRenewal}-days`,
           type: 'renewal',
           title: `${urgency}${sub.name} renewal reminder`,
           message: `Your subscription to ${sub.name} will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}. The charge will be ₹${sub.price.toFixed(2)}.`,
@@ -185,9 +185,20 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     
     // Update last data
     setLastData({
-      totalSpend: totalMonthlySpend,
+      totalSpend: currentSubscriptions.reduce((total, sub) => {
+        if (sub.status !== 'active' && sub.status !== 'trial') return total;
+        
+        if (sub.billingCycle === "monthly") {
+          return total + sub.price;
+        } else if (sub.billingCycle === "yearly") {
+          return total + (sub.price / 12);
+        } else if (sub.billingCycle === "weekly") {
+          return total + (sub.price * 4.33);
+        }
+        return total;
+      }, 0),
       count: currentSubscriptions.length,
-      subscriptionIds: currentIds
+      subscriptionIds: currentSubscriptions.map(sub => sub.id)
     });
     
     // Merge with existing unread alerts 
@@ -195,10 +206,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       // Keep unread alerts that are not duplicates
       const oldAlerts = prevAlerts.filter(alert => 
         !alert.read && 
-        !newAlerts.some(newAlert => 
-          newAlert.title === alert.title && 
-          newAlert.message === alert.message
-        )
+        !newAlerts.some(newAlert => newAlert.id === alert.id)
       );
       
       return [...newAlerts, ...oldAlerts].sort((a, b) => 
@@ -211,18 +219,36 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     const loadData = () => {
       const currentSubscriptions = getSubscriptions();
       setSubscriptions(currentSubscriptions);
-      generateAlerts(currentSubscriptions, subscriptions.length > 0);
+      generateAlerts(currentSubscriptions, true);
     };
     
+    // Initial load
     loadData();
     
-    // Listen for subscription updates
-    const handleStorageChange = () => {
+    // Listen for subscription updates via localStorage changes
+    const handleStorageChange = (event: StorageEvent) => {
+      // Check if the change is related to subscriptions
+      if (event.key && event.key.includes('subscriptions_')) {
+        loadData();
+      }
+    };
+    
+    // Custom event for more immediate updates
+    const handleCustomEvent = () => {
       loadData();
     };
     
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('subscription-updated', handleCustomEvent);
+    
+    // Set up polling to regularly check for new alerts (every 30 seconds)
+    const intervalId = setInterval(loadData, 30000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('subscription-updated', handleCustomEvent);
+      clearInterval(intervalId);
+    };
   }, []);
 
   const markAsRead = (alertId: string) => {
