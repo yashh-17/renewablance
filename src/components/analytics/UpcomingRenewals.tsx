@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Check } from 'lucide-react';
 import { Subscription } from '@/types/subscription';
@@ -15,6 +15,7 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
   const [renewalDays, setRenewalDays] = useState<Record<string, Subscription[]>>({});
   const [tooltipVisible, setTooltipVisible] = useState<string | null>(null);
   const [forceUpdate, setForceUpdate] = useState(0);
+  const lastUpdateTimeRef = useRef<number>(0);
 
   // Generate calendar days for the current month
   useEffect(() => {
@@ -47,17 +48,40 @@ const UpcomingRenewals: React.FC<UpcomingRenewalsProps> = ({ subscriptions }) =>
 
   // Listen for subscription updates
   useEffect(() => {
-    // Additional event listener for custom events
-    const handleCustomEvent = () => {
-      console.log('Subscription updated event received in UpcomingRenewals');
-      // Force a re-render to ensure the UI refreshes
+    // Avoid excessive state updates
+    const updateCalendar = () => {
+      const now = Date.now();
+      if (now - lastUpdateTimeRef.current < 300) {
+        console.log('Skipping calendar update - too soon after last update');
+        return;
+      }
+      lastUpdateTimeRef.current = now;
+      
+      console.log('Forcing calendar update');
       setForceUpdate(prev => prev + 1);
     };
     
+    // Event listener for custom events
+    const handleCustomEvent = () => {
+      console.log('Subscription updated event received in UpcomingRenewals');
+      updateCalendar();
+    };
+    
+    const handleRenewalDetected = () => {
+      console.log('Renewal detected event received in UpcomingRenewals');
+      updateCalendar();
+    };
+    
     window.addEventListener('subscription-updated', handleCustomEvent);
+    window.addEventListener('renewal-detected', handleRenewalDetected);
+    
+    // Regular polling update every 30 seconds
+    const intervalId = setInterval(updateCalendar, 30000);
     
     return () => {
       window.removeEventListener('subscription-updated', handleCustomEvent);
+      window.removeEventListener('renewal-detected', handleRenewalDetected);
+      clearInterval(intervalId);
     };
   }, []);
 

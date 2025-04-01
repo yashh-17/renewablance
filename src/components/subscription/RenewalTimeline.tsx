@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getSubscriptionsDueForRenewal } from '@/services/subscriptionService';
 import { Subscription } from '@/types/subscription';
@@ -24,9 +23,20 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
     month: []
   });
   const [forceUpdate, setForceUpdate] = useState(0);
+  const lastUpdateRef = useRef<number>(0);
 
   const loadRenewals = () => {
     console.log('Loading renewals in RenewalTimeline');
+    const currentTime = Date.now();
+    
+    // Prevent excessive updates (debounce)
+    if (currentTime - lastUpdateRef.current < 300) {
+      console.log('Skipping renewal update - too soon after last update');
+      return;
+    }
+    
+    lastUpdateRef.current = currentTime;
+    
     const weekRenewals = getSubscriptionsDueForRenewal(7);
     const twoWeeksRenewals = getSubscriptionsDueForRenewal(14).filter(
       sub => !weekRenewals.some(weekSub => weekSub.id === sub.id)
@@ -34,6 +44,12 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
     const monthRenewals = getSubscriptionsDueForRenewal(30).filter(
       sub => !weekRenewals.some(weekSub => weekSub.id === sub.id) && 
              !twoWeeksRenewals.some(twoWeekSub => twoWeekSub.id === sub.id)
+    );
+
+    console.log('Found renewals:', 
+      'week:', weekRenewals.length, 
+      'twoWeeks:', twoWeeksRenewals.length, 
+      'month:', monthRenewals.length
     );
 
     const newRenewals = {
@@ -54,9 +70,13 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
     });
     
     if (hasImmediateRenewals) {
+      console.log('Immediate renewals detected, dispatching event');
       // Dispatch a custom event to notify the AlertsModule
       window.dispatchEvent(new CustomEvent('renewal-detected'));
     }
+    
+    // Force a re-render to ensure UI is updated
+    setForceUpdate(prev => prev + 1);
   };
 
   useEffect(() => {
@@ -76,19 +96,24 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
     const handleCustomEvent = () => {
       console.log('Subscription updated event received in RenewalTimeline');
       loadRenewals();
-      // Force a re-render for immediate UI update
-      setForceUpdate(prev => prev + 1);
+    };
+    
+    const handleRenewalDetected = () => {
+      console.log('Renewal detected event received in RenewalTimeline');
+      loadRenewals();
     };
     
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('subscription-updated', handleCustomEvent);
+    window.addEventListener('renewal-detected', handleRenewalDetected);
     
-    // Set up polling to regularly check for renewals (every 10 seconds)
-    const intervalId = setInterval(loadRenewals, 10000);
+    // Set up polling to regularly check for renewals (every 15 seconds)
+    const intervalId = setInterval(loadRenewals, 15000);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('subscription-updated', handleCustomEvent);
+      window.removeEventListener('renewal-detected', handleRenewalDetected);
       clearInterval(intervalId);
     };
   }, []);

@@ -1,4 +1,3 @@
-
 import { Subscription } from '@/types/subscription';
 import secureLogger, { LogEventType } from './loggingService';
 
@@ -161,6 +160,9 @@ export const calculateNextBillingDate = (
   return result;
 };
 
+// Keep track of the last event time to prevent excessive updates
+let lastEventTime = 0;
+
 // Save a subscription (create or update)
 export const saveSubscription = (subscription: Subscription): Subscription => {
   const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -203,11 +205,15 @@ export const saveSubscription = (subscription: Subscription): Subscription => {
     // For new subscriptions, calculate the initial next billing date
     const startDate = new Date(subscription.startDate || subscription.createdAt);
     
+    console.log('New subscription created:', subscription.name, 'Start date:', startDate.toISOString());
+    
     // Calculate the next billing date based on start date and billing cycle
     const nextBillingDate = calculateNextBillingDate(
       startDate,
       subscription.billingCycle
     );
+    
+    console.log('Next billing date calculated:', nextBillingDate.toISOString());
     
     subscription.nextBillingDate = nextBillingDate.toISOString();
     
@@ -246,10 +252,10 @@ export const saveSubscription = (subscription: Subscription): Subscription => {
   
   localStorage.setItem(storageKey, JSON.stringify(subscriptions));
   
-  console.log('Subscription saved, triggering events');
+  console.log('Subscription saved, triggering events:', subscription.name);
   
   // Dispatch events to notify components
-  triggerSubscriptionUpdatedEvents(storageKey, isNew);
+  triggerSubscriptionUpdatedEvents(storageKey, isNew, subscription);
   
   return subscription;
 };
@@ -283,7 +289,20 @@ export const deleteSubscription = (id: string): boolean => {
 };
 
 // Helper function to trigger all relevant events
-function triggerSubscriptionUpdatedEvents(storageKey: string, isNew: boolean = false) {
+function triggerSubscriptionUpdatedEvents(storageKey: string, isNew: boolean = false, subscription?: Subscription) {
+  // Prevent excessive event firing (debounce)
+  const now = Date.now();
+  if (now - lastEventTime < 300) {
+    console.log('Skipping event dispatch - too soon after last event');
+    setTimeout(() => {
+      console.log('Dispatching delayed events due to throttling');
+      triggerSubscriptionUpdatedEvents(storageKey, isNew, subscription);
+    }, 500);
+    return;
+  }
+  
+  lastEventTime = now;
+  
   // Dispatch a storage event to notify other components about the change
   window.dispatchEvent(new StorageEvent('storage', {
     key: storageKey,
@@ -294,11 +313,30 @@ function triggerSubscriptionUpdatedEvents(storageKey: string, isNew: boolean = f
   // Dispatch a custom event for more immediate updates
   window.dispatchEvent(new CustomEvent('subscription-updated'));
   
-  // Dispatch a renewal check event - with slight delay to ensure all components are updated
-  setTimeout(() => {
-    console.log('Dispatching renewal-detected event');
-    window.dispatchEvent(new CustomEvent('renewal-detected'));
-  }, 300);
+  // Check if the subscription is due for renewal soon
+  if (subscription) {
+    const nextBillingDate = new Date(subscription.nextBillingDate);
+    const currentDate = new Date();
+    const daysToRenewal = Math.ceil(
+      (nextBillingDate.getTime() - currentDate.getTime()) / 
+      (1000 * 60 * 60 * 24)
+    );
+    
+    if (daysToRenewal <= 30) {
+      console.log('Dispatching renewal-detected event for subscription:', subscription.name, 'days:', daysToRenewal);
+      
+      // Small delay for initial event to ensure components have time to initialize
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('renewal-detected'));
+      }, 200);
+    }
+  } else {
+    // Dispatch a renewal check event with slight delay to ensure all components are updated
+    setTimeout(() => {
+      console.log('Dispatching renewal-detected event');
+      window.dispatchEvent(new CustomEvent('renewal-detected'));
+    }, 300);
+  }
   
   // For new subscriptions, dispatch another renewal event after a longer delay
   // to ensure any new component that may have loaded after the first event also gets notified
@@ -310,6 +348,13 @@ function triggerSubscriptionUpdatedEvents(storageKey: string, isNew: boolean = f
       // Dispatch another subscription-updated event to ensure all components are updated
       window.dispatchEvent(new CustomEvent('subscription-updated'));
     }, 1000);
+    
+    // Final check after a longer delay to catch any missed updates
+    setTimeout(() => {
+      console.log('Final event dispatch check');
+      window.dispatchEvent(new CustomEvent('subscription-updated'));
+      window.dispatchEvent(new CustomEvent('renewal-detected'));
+    }, 2000);
   }
 }
 
@@ -326,12 +371,14 @@ export const getSubscriptionsDueForRenewal = (days: number): Subscription[] => {
   const futureDate = new Date(now);
   futureDate.setDate(futureDate.getDate() + days);
   
-  return subscriptions.filter(sub => {
+  const result = subscriptions.filter(sub => {
     if (sub.status !== 'active' && sub.status !== 'trial') return false;
     
     const nextBillingDate = new Date(sub.nextBillingDate);
     return nextBillingDate >= now && nextBillingDate <= futureDate;
   }).sort((a, b) => new Date(a.nextBillingDate).getTime() - new Date(b.nextBillingDate).getTime());
+  
+  return result;
 };
 
 // Get subscriptions by status

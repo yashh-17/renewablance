@@ -48,12 +48,14 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     subscriptionIds: string[];
     checkedRenewalsDates: Record<string, boolean>;
     processedAlertIds: Set<string>;
+    lastEventTimestamp: number;
   }>({ 
     totalSpend: 0, 
     count: 0, 
     subscriptionIds: [],
     checkedRenewalsDates: {},
-    processedAlertIds: new Set()
+    processedAlertIds: new Set(),
+    lastEventTimestamp: 0
   });
 
   const generateAlerts = useCallback((currentSubscriptions: Subscription[], forceRegenerate = false) => {
@@ -61,7 +63,10 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     const newAlerts: Alert[] = [];
     const processedAlertIds = new Set(lastData.processedAlertIds);
     
+    console.log('Generating alerts, force?', forceRegenerate, 'Current subs:', currentSubscriptions.length);
+    
     const upcomingRenewals = getSubscriptionsDueForRenewal(30);
+    console.log('Upcoming renewals found:', upcomingRenewals.length);
     
     upcomingRenewals.forEach(sub => {
       const renewalDate = new Date(sub.nextBillingDate);
@@ -70,9 +75,10 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
         (1000 * 60 * 60 * 24)
       );
       
-      const alertId = `renewal-${sub.id}-${daysToRenewal}-${renewalDate.toISOString()}`;
+      const alertId = `renewal-${sub.id}-${renewalDate.toISOString()}`;
       
       if (!forceRegenerate && processedAlertIds.has(alertId)) {
+        console.log('Skipping alert, already processed:', alertId);
         return;
       }
       
@@ -83,6 +89,8 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
           let urgency = '';
           if (daysToRenewal <= 3) urgency = 'Urgent: ';
           else if (daysToRenewal <= 7) urgency = 'Soon: ';
+          
+          console.log('Adding renewal alert for', sub.name, 'days:', daysToRenewal);
           
           newAlerts.push({
             id: alertId,
@@ -98,6 +106,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
           processedAlertIds.add(alertId);
           
           if (daysToRenewal <= 3 && !lastData.checkedRenewalsDates[checkedKey]) {
+            console.log('Showing toast for urgent renewal:', sub.name);
             uiToast({
               title: `${sub.name} renewal reminder`,
               description: `Your subscription will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}.`,
@@ -180,12 +189,14 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       const newSubIds = currentIds.filter(id => !lastData.subscriptionIds.includes(id));
       
       if (newSubIds.length > 0) {
+        console.log('New subscriptions detected:', newSubIds.length);
         const newSubscriptions = currentSubscriptions.filter(sub => newSubIds.includes(sub.id));
         
         newSubscriptions.forEach(newSub => {
-          const newSubAlertId = `new-sub-${newSub.id}-${now.getTime()}`;
+          const newSubAlertId = `new-sub-${newSub.id}`;
           
           if (!processedAlertIds.has(newSubAlertId)) {
+            console.log('Adding new subscription alert for', newSub.name);
             newAlerts.push({
               id: newSubAlertId,
               type: 'newSubscription',
@@ -210,9 +221,10 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
               if (daysToRenewal <= 3) urgency = 'Urgent: ';
               else if (daysToRenewal <= 7) urgency = 'Soon: ';
               
-              const renewalAlertId = `renewal-new-${newSub.id}-${daysToRenewal}-${now.getTime()}`;
+              const renewalAlertId = `renewal-new-${newSub.id}-${renewalDate.toISOString()}`;
               
               if (!processedAlertIds.has(renewalAlertId)) {
+                console.log('Adding renewal alert for new subscription', newSub.name, 'days:', daysToRenewal);
                 newAlerts.push({
                   id: renewalAlertId,
                   type: 'renewal',
@@ -227,6 +239,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
                 processedAlertIds.add(renewalAlertId);
                 
                 if (daysToRenewal <= 3) {
+                  console.log('Showing toast for urgent renewal of new subscription:', newSub.name);
                   uiToast({
                     title: `${newSub.name} renewal reminder`,
                     description: `Your new subscription will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}.`,
@@ -250,7 +263,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     if (potentialMissedPayments.length > 0) {
       potentialMissedPayments.forEach(sub => {
         const daysMissed = Math.floor((now.getTime() - new Date(sub.nextBillingDate).getTime()) / (24 * 60 * 60 * 1000));
-        const missedAlertId = `missed-payment-${sub.id}-${daysMissed}-${now.getTime()}`;
+        const missedAlertId = `missed-payment-${sub.id}-${daysMissed}`;
         
         if (!processedAlertIds.has(missedAlertId)) {
           newAlerts.push({
@@ -274,7 +287,8 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       count: currentSubscriptions.length,
       subscriptionIds: currentSubscriptions.map(sub => sub.id),
       checkedRenewalsDates: checkedRenewalsDates,
-      processedAlertIds: processedAlertIds
+      processedAlertIds: processedAlertIds,
+      lastEventTimestamp: Date.now()
     });
     
     setAlerts(prevAlerts => {
@@ -298,10 +312,15 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
 
   const forceRefresh = useCallback(() => {
     console.log('Force refreshing alerts');
+    if (Date.now() - lastData.lastEventTimestamp < 300) {
+      console.log('Skipping refresh - too soon after last event');
+      return;
+    }
+    
     const currentSubscriptions = getSubscriptions();
     setSubscriptions(currentSubscriptions);
     generateAlerts(currentSubscriptions, true);
-  }, [generateAlerts]);
+  }, [generateAlerts, lastData.lastEventTimestamp]);
 
   useEffect(() => {
     const currentSubscriptions = getSubscriptions();
@@ -313,6 +332,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key && event.key.includes('subscriptions_')) {
+        console.log('Storage change detected in AlertsModule');
         forceRefresh();
       }
     };
@@ -331,7 +351,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     window.addEventListener('subscription-updated', handleCustomEvent);
     window.addEventListener('renewal-detected', handleRenewalDetected);
     
-    const intervalId = setInterval(loadData, 10000);
+    const intervalId = setInterval(loadData, 30000);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);

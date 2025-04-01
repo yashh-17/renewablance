@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DashboardStats from '@/components/dashboard/DashboardStats';
@@ -88,13 +88,14 @@ const Dashboard = () => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
   
-  const loadSubscriptions = () => {
+  const loadSubscriptions = useCallback(() => {
+    console.log('Loading subscriptions in Dashboard');
     const subs = getSubscriptions();
     setSubscriptions(subs);
     
     const recs = getRecommendations(subs);
     setRecommendations(recs);
-  };
+  }, []);
   
   const handleAddSubscription = () => {
     setIsTopBarEditMode(false);
@@ -149,22 +150,36 @@ const Dashboard = () => {
         // If it's renewing soon, let the user know
         if (daysToRenewal <= 30) {
           setTimeout(() => {
+            console.log('Showing toast for new subscription renewal:', subscription.name, 'days:', daysToRenewal);
             uiToast({
               title: "Renewal Notice",
               description: `Your new subscription to ${subscription.name} will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}.`,
               variant: "default",
             });
-          }, 1000);
+            
+            // Trigger renewal detection for other components
+            window.dispatchEvent(new CustomEvent('renewal-detected'));
+          }, 500);
         }
       }
       
       // Dispatch custom event to immediately update components
+      console.log('Dispatching subscription-updated event after save');
       window.dispatchEvent(new CustomEvent('subscription-updated'));
       
       // If we're on the overview tab, make sure we stay there to see the notifications
       if (isNewSubscription && activeTab !== 'overview') {
         setActiveTab('overview');
       }
+      
+      // Add a second dispatch with delay to ensure all components have time to initialize
+      setTimeout(() => {
+        console.log('Dispatching delayed subscription-updated event');
+        window.dispatchEvent(new CustomEvent('subscription-updated'));
+        
+        // Also dispatch renewal event
+        window.dispatchEvent(new CustomEvent('renewal-detected'));
+      }, 1000);
     } catch (error) {
       toast.error('Error saving subscription');
       console.error(error);
