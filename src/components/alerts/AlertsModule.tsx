@@ -58,6 +58,12 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     lastEventTimestamp: 0
   });
 
+  const calculateDaysBetween = (startDate: Date, endDate: Date): number => {
+    const diffTime = endDate.getTime() - startDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
   const generateAlerts = useCallback((currentSubscriptions: Subscription[], forceRegenerate = false) => {
     const now = new Date();
     const newAlerts: Alert[] = [];
@@ -70,10 +76,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     
     upcomingRenewals.forEach(sub => {
       const renewalDate = new Date(sub.nextBillingDate);
-      const daysToRenewal = Math.ceil(
-        (renewalDate.getTime() - now.getTime()) / 
-        (1000 * 60 * 60 * 24)
-      );
+      const daysToRenewal = calculateDaysBetween(now, renewalDate);
       
       const alertId = `renewal-${sub.id}-${renewalDate.toISOString()}`;
       
@@ -85,10 +88,9 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       const checkedKey = `${sub.id}-${renewalDate.toISOString()}`;
       
       if (forceRegenerate || !lastData.checkedRenewalsDates[checkedKey]) {
-        if (daysToRenewal <= 3 || daysToRenewal === 7 || daysToRenewal === 14 || daysToRenewal === 30) {
+        if (daysToRenewal <= 7) {
           let urgency = '';
           if (daysToRenewal <= 3) urgency = 'Urgent: ';
-          else if (daysToRenewal <= 7) urgency = 'Soon: ';
           
           console.log('Adding renewal alert for', sub.name, 'days:', daysToRenewal);
           
@@ -211,15 +213,11 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
             processedAlertIds.add(newSubAlertId);
             
             const renewalDate = new Date(newSub.nextBillingDate);
-            const daysToRenewal = Math.ceil(
-              (renewalDate.getTime() - now.getTime()) / 
-              (1000 * 60 * 60 * 24)
-            );
+            const daysToRenewal = calculateDaysBetween(now, renewalDate);
             
-            if (daysToRenewal <= 30) {
+            if (daysToRenewal <= 7) {
               let urgency = '';
               if (daysToRenewal <= 3) urgency = 'Urgent: ';
-              else if (daysToRenewal <= 7) urgency = 'Soon: ';
               
               const renewalAlertId = `renewal-new-${newSub.id}-${renewalDate.toISOString()}`;
               

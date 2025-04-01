@@ -121,6 +121,12 @@ const Dashboard = () => {
     setSelectedSubscription(null);
   };
   
+  const calculateDaysBetween = (startDate: Date, endDate: Date): number => {
+    const diffTime = endDate.getTime() - startDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+  
   const handleSaveSubscription = (subscription: Subscription) => {
     try {
       saveSubscription(subscription);
@@ -138,17 +144,12 @@ const Dashboard = () => {
         }
       );
       
-      // If it's a new subscription, check if it has an upcoming renewal
       if (isNewSubscription) {
         const nextBillingDate = new Date(subscription.nextBillingDate);
         const now = new Date();
-        const daysToRenewal = Math.ceil(
-          (nextBillingDate.getTime() - now.getTime()) / 
-          (1000 * 60 * 60 * 24)
-        );
+        const daysToRenewal = calculateDaysBetween(now, nextBillingDate);
         
-        // If it's renewing soon, let the user know
-        if (daysToRenewal <= 30) {
+        if (daysToRenewal <= 7) {
           setTimeout(() => {
             console.log('Showing toast for new subscription renewal:', subscription.name, 'days:', daysToRenewal);
             uiToast({
@@ -157,27 +158,22 @@ const Dashboard = () => {
               variant: "default",
             });
             
-            // Trigger renewal detection for other components
             window.dispatchEvent(new CustomEvent('renewal-detected'));
           }, 500);
         }
       }
       
-      // Dispatch custom event to immediately update components
       console.log('Dispatching subscription-updated event after save');
       window.dispatchEvent(new CustomEvent('subscription-updated'));
       
-      // If we're on the overview tab, make sure we stay there to see the notifications
       if (isNewSubscription && activeTab !== 'overview') {
         setActiveTab('overview');
       }
       
-      // Add a second dispatch with delay to ensure all components have time to initialize
       setTimeout(() => {
         console.log('Dispatching delayed subscription-updated event');
         window.dispatchEvent(new CustomEvent('subscription-updated'));
         
-        // Also dispatch renewal event
         window.dispatchEvent(new CustomEvent('renewal-detected'));
       }, 1000);
     } catch (error) {
@@ -185,13 +181,12 @@ const Dashboard = () => {
       console.error(error);
     }
   };
-  
+
   const handleDeleteSubscription = (id: string) => {
     try {
       deleteSubscription(id);
       loadSubscriptions();
       
-      // Dispatch custom event to immediately update components
       window.dispatchEvent(new CustomEvent('subscription-updated'));
     } catch (error) {
       toast.error('Error deleting subscription');

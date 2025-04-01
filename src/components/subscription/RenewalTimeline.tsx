@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getSubscriptionsDueForRenewal } from '@/services/subscriptionService';
@@ -24,6 +25,15 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
   });
   const [forceUpdate, setForceUpdate] = useState(0);
   const lastUpdateRef = useRef<number>(0);
+
+  // Helper function to calculate exact days between two dates
+  const calculateDaysBetween = (startDate: Date, endDate: Date): number => {
+    // Get time differences in milliseconds
+    const diffTime = endDate.getTime() - startDate.getTime();
+    // Convert to days and round to get whole days
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
 
   const loadRenewals = () => {
     console.log('Loading renewals in RenewalTimeline');
@@ -60,13 +70,12 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
     
     setRenewals(newRenewals);
     
-    // Check if any new immediate renewals (within 3 days) were loaded
+    // Check if any new immediate renewals (within 7 days) were loaded
     const hasImmediateRenewals = weekRenewals.some(sub => {
-      const daysToRenewal = Math.ceil(
-        (new Date(sub.nextBillingDate).getTime() - new Date().getTime()) / 
-        (1000 * 60 * 60 * 24)
-      );
-      return daysToRenewal <= 3;
+      const now = new Date();
+      const renewalDate = new Date(sub.nextBillingDate);
+      const daysToRenewal = calculateDaysBetween(now, renewalDate);
+      return daysToRenewal <= 7;
     });
     
     if (hasImmediateRenewals) {
@@ -148,32 +157,41 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
           {title}
         </h3>
         <div className="space-y-2">
-          {subscriptions.map(sub => (
-            <div key={`${sub.id}-${forceUpdate}`} className="flex items-center justify-between p-2 bg-muted/30 rounded-md hover:bg-muted/50 transition-colors">
-              <div className="flex items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${sub.iconBg || 'bg-brand-600'} mr-3`}>
-                  {sub.icon || sub.name.charAt(0).toUpperCase()}
+          {subscriptions.map(sub => {
+            const now = new Date();
+            const renewalDate = new Date(sub.nextBillingDate);
+            const exactDaysToRenewal = calculateDaysBetween(now, renewalDate);
+            
+            return (
+              <div key={`${sub.id}-${forceUpdate}`} className="flex items-center justify-between p-2 bg-muted/30 rounded-md hover:bg-muted/50 transition-colors">
+                <div className="flex items-center">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${sub.iconBg || 'bg-brand-600'} mr-3`}>
+                    {sub.icon || sub.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{sub.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(sub.nextBillingDate)} • {formatPrice(sub.price, sub.billingCycle)} 
+                      <span className="ml-1 font-semibold">
+                        ({exactDaysToRenewal} day{exactDaysToRenewal !== 1 ? 's' : ''} left)
+                      </span>
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-sm">{sub.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDate(sub.nextBillingDate)} • {formatPrice(sub.price, sub.billingCycle)}
-                  </p>
-                </div>
+                
+                {onEditSubscription && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => onEditSubscription(sub)}
+                    className="text-xs px-2"
+                  >
+                    Edit
+                  </Button>
+                )}
               </div>
-              
-              {onEditSubscription && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => onEditSubscription(sub)}
-                  className="text-xs px-2"
-                >
-                  Edit
-                </Button>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );

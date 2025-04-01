@@ -112,6 +112,15 @@ export const getSubscriptions = (): Subscription[] => {
   return JSON.parse(localStorage.getItem(storageKey) || '[]');
 };
 
+// Helper function to calculate exact days between two dates
+const calculateDaysBetween = (startDate: Date, endDate: Date): number => {
+  // Get time differences in milliseconds
+  const diffTime = endDate.getTime() - startDate.getTime();
+  // Convert to days and round to get whole days
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+};
+
 // Calculate the next billing date based on the current date and billing cycle
 export const calculateNextBillingDate = (
   currentDate: Date,
@@ -203,6 +212,7 @@ export const saveSubscription = (subscription: Subscription): Subscription => {
     }
   } else {
     // For new subscriptions, calculate the initial next billing date
+    // Use the start date provided by the user
     const startDate = new Date(subscription.startDate || subscription.createdAt);
     
     console.log('New subscription created:', subscription.name, 'Start date:', startDate.toISOString());
@@ -317,12 +327,10 @@ function triggerSubscriptionUpdatedEvents(storageKey: string, isNew: boolean = f
   if (subscription) {
     const nextBillingDate = new Date(subscription.nextBillingDate);
     const currentDate = new Date();
-    const daysToRenewal = Math.ceil(
-      (nextBillingDate.getTime() - currentDate.getTime()) / 
-      (1000 * 60 * 60 * 24)
-    );
+    const daysToRenewal = calculateDaysBetween(currentDate, nextBillingDate);
     
-    if (daysToRenewal <= 30) {
+    // Only dispatch renewal-detected event for subscriptions with renewals in the next 7 days
+    if (daysToRenewal <= 7) {
       console.log('Dispatching renewal-detected event for subscription:', subscription.name, 'days:', daysToRenewal);
       
       // Small delay for initial event to ensure components have time to initialize
@@ -364,7 +372,7 @@ export const getSubscriptionById = (id: string): Subscription | null => {
   return subscriptions.find(sub => sub.id === id) || null;
 };
 
-// Add a new function to get subscriptions due for renewal within a specific timeframe
+// Get subscriptions due for renewal within a specific timeframe
 export const getSubscriptionsDueForRenewal = (days: number): Subscription[] => {
   const subscriptions = getSubscriptions();
   const now = new Date();
