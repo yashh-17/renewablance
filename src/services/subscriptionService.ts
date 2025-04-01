@@ -118,7 +118,8 @@ const calculateDaysBetween = (startDate: Date, endDate: Date): number => {
   const diffTime = endDate.getTime() - startDate.getTime();
   // Convert to days and round to get whole days
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
+  // Ensure we never return negative values - return 0 as minimum
+  return Math.max(0, diffDays);
 };
 
 // Calculate the next billing date based on the current date and billing cycle
@@ -383,6 +384,14 @@ export const getSubscriptionsDueForRenewal = (days: number): Subscription[] => {
     if (sub.status !== 'active' && sub.status !== 'trial') return false;
     
     const nextBillingDate = new Date(sub.nextBillingDate);
+    
+    // For subscriptions that are due today or overdue, only include if within the past 7 days
+    if (nextBillingDate < now) {
+      const daysSinceRenewal = calculateDaysBetween(nextBillingDate, now);
+      return daysSinceRenewal <= 7; // Only include if within a week of being overdue
+    }
+    
+    // For future renewals, include if they're within the specified days window
     return nextBillingDate >= now && nextBillingDate <= futureDate;
   }).sort((a, b) => new Date(a.nextBillingDate).getTime() - new Date(b.nextBillingDate).getTime());
   

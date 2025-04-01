@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { 
   Card, 
@@ -61,7 +62,8 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   const calculateDaysBetween = (startDate: Date, endDate: Date): number => {
     const diffTime = endDate.getTime() - startDate.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    // Ensure we never return negative values
+    return Math.max(0, diffDays);
   };
 
   const generateAlerts = useCallback((currentSubscriptions: Subscription[], forceRegenerate = false) => {
@@ -77,28 +79,34 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     upcomingRenewals.forEach(sub => {
       const renewalDate = new Date(sub.nextBillingDate);
       const daysToRenewal = calculateDaysBetween(now, renewalDate);
+      const isPastDue = renewalDate < now;
       
-      const alertId = `renewal-${sub.id}-${renewalDate.toISOString()}`;
-      
-      if (!forceRegenerate && processedAlertIds.has(alertId)) {
-        console.log('Skipping alert, already processed:', alertId);
-        return;
-      }
-      
-      const checkedKey = `${sub.id}-${renewalDate.toISOString()}`;
-      
-      if (forceRegenerate || !lastData.checkedRenewalsDates[checkedKey]) {
-        if (daysToRenewal <= 7) {
+      // Only create alerts for renewals within 7 days or ones that are due/overdue
+      if (daysToRenewal <= 7 || isPastDue) {
+        const alertId = `renewal-${sub.id}-${renewalDate.toISOString()}`;
+        
+        if (!forceRegenerate && processedAlertIds.has(alertId)) {
+          console.log('Skipping alert, already processed:', alertId);
+          return;
+        }
+        
+        const checkedKey = `${sub.id}-${renewalDate.toISOString()}`;
+        
+        if (forceRegenerate || !lastData.checkedRenewalsDates[checkedKey]) {
           let urgency = '';
-          if (daysToRenewal <= 3) urgency = 'Urgent: ';
+          if (daysToRenewal <= 3 || isPastDue) urgency = 'Urgent: ';
           
           console.log('Adding renewal alert for', sub.name, 'days:', daysToRenewal);
+          
+          const dayMessage = isPastDue 
+            ? 'Renewal due today' 
+            : `in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}`;
           
           newAlerts.push({
             id: alertId,
             type: 'renewal',
             title: `${urgency}${sub.name} renewal reminder`,
-            message: `Your subscription to ${sub.name} will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}. The charge will be ₹${sub.price.toFixed(2)}.`,
+            message: `Your subscription to ${sub.name} will renew ${dayMessage}. The charge will be ₹${sub.price.toFixed(2)}.`,
             date: now,
             read: false,
             action: () => onEditSubscription && onEditSubscription(sub),
@@ -107,11 +115,11 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
           
           processedAlertIds.add(alertId);
           
-          if (daysToRenewal <= 3 && !lastData.checkedRenewalsDates[checkedKey]) {
+          if ((daysToRenewal <= 3 || isPastDue) && !lastData.checkedRenewalsDates[checkedKey]) {
             console.log('Showing toast for urgent renewal:', sub.name);
             uiToast({
               title: `${sub.name} renewal reminder`,
-              description: `Your subscription will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}.`,
+              description: `Your subscription will renew ${dayMessage}.`,
               variant: "default"
             });
           }

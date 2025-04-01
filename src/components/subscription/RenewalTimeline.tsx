@@ -32,7 +32,8 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
     const diffTime = endDate.getTime() - startDate.getTime();
     // Convert to days and round to get whole days
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    // Ensure we never return negative values - return 0 as minimum
+    return Math.max(0, diffDays);
   };
 
   const loadRenewals = () => {
@@ -160,7 +161,9 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
           {subscriptions.map(sub => {
             const now = new Date();
             const renewalDate = new Date(sub.nextBillingDate);
-            const exactDaysToRenewal = calculateDaysBetween(now, renewalDate);
+            const daysToRenewal = calculateDaysBetween(now, renewalDate);
+            const isPastDue = renewalDate < now;
+            const dayText = isPastDue ? "Renewal due today" : `${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''} left`;
             
             return (
               <div key={`${sub.id}-${forceUpdate}`} className="flex items-center justify-between p-2 bg-muted/30 rounded-md hover:bg-muted/50 transition-colors">
@@ -173,7 +176,7 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
                     <p className="text-xs text-muted-foreground">
                       {formatDate(sub.nextBillingDate)} • {formatPrice(sub.price, sub.billingCycle)} 
                       <span className="ml-1 font-semibold">
-                        ({exactDaysToRenewal} day{exactDaysToRenewal !== 1 ? 's' : ''} left)
+                        ({dayText})
                       </span>
                     </p>
                   </div>
