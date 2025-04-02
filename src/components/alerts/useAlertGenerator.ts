@@ -7,9 +7,9 @@ import { calculateDaysBetween } from './alertUtils';
 import { useToast } from "@/hooks/use-toast";
 
 export const useAlertGenerator = (
-  onEditSubscription?: (subscription: Subscription) => void,
   lastData: AlertsState,
-  updateLastData: (updates: Partial<AlertsState>) => void
+  updateLastData: (updates: Partial<AlertsState>) => void,
+  onEditSubscription?: (subscription: Subscription) => void
 ) => {
   const { toast: uiToast } = useToast();
   

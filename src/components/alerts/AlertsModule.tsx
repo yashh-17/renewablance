@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { 
   Card, 
@@ -28,9 +27,9 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   } = useAlertsState();
 
   const { generateAlerts } = useAlertGenerator(
-    onEditSubscription, 
-    lastData, 
-    updateLastData
+    lastData,
+    updateLastData,
+    onEditSubscription
   );
 
   const loadData = useCallback(() => {

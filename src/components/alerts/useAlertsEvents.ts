@@ -1,4 +1,3 @@
-
 import { useEffect, useCallback } from 'react';
 import { getSubscriptions } from '@/services/subscriptionService';
 import { saveDismissedAlertsToStorage } from './alertUtils';
@@ -62,17 +61,12 @@ export const useAlertsEvents = (
   }, [loadData, forceRefresh, updateLastData]);
 
   const updateDismissedAlert = useCallback((alertId: string) => {
-    updateLastData(prev => {
-      const updatedDismissedIds = new Set(prev.dismissedAlertIds);
-      updatedDismissedIds.add(alertId);
-      
-      saveDismissedAlertsToStorage(updatedDismissedIds);
-      
-      return {
-        dismissedAlertIds: updatedDismissedIds
-      };
+    updateLastData({
+      dismissedAlertIds: new Set([...lastData.dismissedAlertIds, alertId])
     });
-  }, [updateLastData]);
+    
+    saveDismissedAlertsToStorage(new Set([...lastData.dismissedAlertIds, alertId]));
+  }, [updateLastData, lastData.dismissedAlertIds]);
 
   return { updateDismissedAlert };
 };
