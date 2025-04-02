@@ -114,11 +114,14 @@ export const getSubscriptions = (): Subscription[] => {
 
 // Helper function to calculate exact days between two dates
 const calculateDaysBetween = (startDate: Date, endDate: Date): number => {
-  // Get time differences in milliseconds
-  const diffTime = endDate.getTime() - startDate.getTime();
-  // Convert to days and round to get whole days
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  // Ensure we never return negative values - return 0 as minimum
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+  
+  const diffTime = end.getTime() - start.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
   return Math.max(0, diffDays);
 };
 
@@ -130,39 +133,40 @@ export const calculateNextBillingDate = (
 ): Date => {
   const result = new Date(currentDate);
   
-  // Use the previous billing date's day if it exists and is valid
   if (previousBillingDate) {
+    const targetMonth = result.getMonth();
+    const targetYear = result.getFullYear();
+    
     const previousDay = previousBillingDate.getDate();
     result.setDate(previousDay);
+    
+    result.setMonth(targetMonth);
+    result.setFullYear(targetYear);
   }
   
-  // Calculate the next billing date based on billing cycle
   if (billingCycle === 'weekly') {
     result.setDate(result.getDate() + 7);
   } else if (billingCycle === 'monthly') {
+    const currentDay = result.getDate();
+    
     result.setMonth(result.getMonth() + 1);
     
-    // Handle month edge cases (e.g., Jan 31 -> Feb 28)
-    const month = result.getMonth();
-    result.setDate(1); // Temporarily set to 1st to avoid date overflow
-    result.setMonth(month); // Set the correct month
+    const newMonth = result.getMonth();
+    const expectedMonth = (currentDate.getMonth() + 1) % 12;
     
-    // If original date was 29-31 and new month doesn't have those days, set to last day
-    if (previousBillingDate && previousBillingDate.getDate() > result.getDate()) {
-      // We're already at the last day of the month (since date was capped)
-      // No need to adjust further
+    if (newMonth !== expectedMonth) {
+      result.setDate(0);
     }
   } else if (billingCycle === 'yearly') {
     result.setFullYear(result.getFullYear() + 1);
     
-    // Handle February 29 in leap years
-    if (previousBillingDate && previousBillingDate.getMonth() === 1 && previousBillingDate.getDate() === 29) {
+    if (result.getMonth() === 1 && result.getDate() === 29) {
       const isLeapYear = (year: number) => {
         return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
       };
       
       if (!isLeapYear(result.getFullYear())) {
-        result.setDate(28); // Set to Feb 28 in non-leap years
+        result.setDate(28);
       }
     }
   }
@@ -186,13 +190,11 @@ export const saveSubscription = (subscription: Subscription): Subscription => {
   const currentDate = new Date();
   let oldSubscription: Subscription | null = null;
   
-  // For existing subscriptions, check if we need to recalculate the next billing date
   if (!isNew) {
     oldSubscription = { ...subscriptions[index] };
     const oldBillingCycle = oldSubscription.billingCycle;
     const newBillingCycle = subscription.billingCycle;
     
-    // Recalculate next billing date if billing cycle changed or if status changed from inactive to active
     const needsRecalculation = 
       oldBillingCycle !== newBillingCycle || 
       (oldSubscription.status !== 'active' && oldSubscription.status !== 'trial' && 
@@ -202,7 +204,6 @@ export const saveSubscription = (subscription: Subscription): Subscription => {
       const startDate = new Date(subscription.startDate || subscription.createdAt);
       const previousBillingDate = new Date(oldSubscription.nextBillingDate);
       
-      // Calculate the new next billing date
       const nextBillingDate = calculateNextBillingDate(
         currentDate,
         subscription.billingCycle,
@@ -212,13 +213,10 @@ export const saveSubscription = (subscription: Subscription): Subscription => {
       subscription.nextBillingDate = nextBillingDate.toISOString();
     }
   } else {
-    // For new subscriptions, calculate the initial next billing date
-    // Use the start date provided by the user
     const startDate = new Date(subscription.startDate || subscription.createdAt);
     
     console.log('New subscription created:', subscription.name, 'Start date:', startDate.toISOString());
     
-    // Calculate the next billing date based on start date and billing cycle
     const nextBillingDate = calculateNextBillingDate(
       startDate,
       subscription.billingCycle
@@ -228,17 +226,14 @@ export const saveSubscription = (subscription: Subscription): Subscription => {
     
     subscription.nextBillingDate = nextBillingDate.toISOString();
     
-    // Assign a new unique ID if one doesn't exist
     if (!subscription.id) {
       subscription.id = Date.now().toString();
     }
   }
   
   if (index !== -1) {
-    // Update existing subscription
     subscriptions[index] = subscription;
     
-    // Log the update with before/after data (sanitized by the logger)
     secureLogger.logDataChange(
       'Subscription', 
       'updated', 
@@ -250,10 +245,8 @@ export const saveSubscription = (subscription: Subscription): Subscription => {
       }
     );
   } else {
-    // Add new subscription
     subscriptions.push(subscription);
     
-    // Log the new subscription
     secureLogger.logDataChange(
       'Subscription', 
       'created', 
@@ -265,7 +258,6 @@ export const saveSubscription = (subscription: Subscription): Subscription => {
   
   console.log('Subscription saved, triggering events:', subscription.name);
   
-  // Dispatch events to notify components
   triggerSubscriptionUpdatedEvents(storageKey, isNew, subscription);
   
   return subscription;
@@ -284,7 +276,6 @@ export const deleteSubscription = (id: string): boolean => {
   
   localStorage.setItem(storageKey, JSON.stringify(filteredSubscriptions));
   
-  // Log the deletion
   if (subscription) {
     secureLogger.logDataChange(
       'Subscription', 
@@ -293,7 +284,6 @@ export const deleteSubscription = (id: string): boolean => {
     );
   }
   
-  // Dispatch events to notify components
   triggerSubscriptionUpdatedEvents(storageKey, false);
   
   return true;
@@ -301,7 +291,6 @@ export const deleteSubscription = (id: string): boolean => {
 
 // Helper function to trigger all relevant events
 function triggerSubscriptionUpdatedEvents(storageKey: string, isNew: boolean = false, subscription?: Subscription) {
-  // Prevent excessive event firing (debounce)
   const now = Date.now();
   if (now - lastEventTime < 300) {
     console.log('Skipping event dispatch - too soon after last event');
@@ -314,51 +303,41 @@ function triggerSubscriptionUpdatedEvents(storageKey: string, isNew: boolean = f
   
   lastEventTime = now;
   
-  // Dispatch a storage event to notify other components about the change
   window.dispatchEvent(new StorageEvent('storage', {
     key: storageKey,
   }));
   
   console.log('Dispatching subscription-updated event');
   
-  // Dispatch a custom event for more immediate updates
   window.dispatchEvent(new CustomEvent('subscription-updated'));
   
-  // Check if the subscription is due for renewal soon
   if (subscription) {
     const nextBillingDate = new Date(subscription.nextBillingDate);
     const currentDate = new Date();
     const daysToRenewal = calculateDaysBetween(currentDate, nextBillingDate);
     
-    // Only dispatch renewal-detected event for subscriptions with renewals in the next 7 days
     if (daysToRenewal <= 7) {
       console.log('Dispatching renewal-detected event for subscription:', subscription.name, 'days:', daysToRenewal);
       
-      // Small delay for initial event to ensure components have time to initialize
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('renewal-detected'));
       }, 200);
     }
   } else {
-    // Dispatch a renewal check event with slight delay to ensure all components are updated
     setTimeout(() => {
       console.log('Dispatching renewal-detected event');
       window.dispatchEvent(new CustomEvent('renewal-detected'));
     }, 300);
   }
   
-  // For new subscriptions, dispatch another renewal event after a longer delay
-  // to ensure any new component that may have loaded after the first event also gets notified
   if (isNew) {
     setTimeout(() => {
       console.log('Dispatching delayed renewal-detected event for new subscription');
       window.dispatchEvent(new CustomEvent('renewal-detected'));
       
-      // Dispatch another subscription-updated event to ensure all components are updated
       window.dispatchEvent(new CustomEvent('subscription-updated'));
     }, 1000);
     
-    // Final check after a longer delay to catch any missed updates
     setTimeout(() => {
       console.log('Final event dispatch check');
       window.dispatchEvent(new CustomEvent('subscription-updated'));
@@ -377,6 +356,7 @@ export const getSubscriptionById = (id: string): Subscription | null => {
 export const getSubscriptionsDueForRenewal = (days: number): Subscription[] => {
   const subscriptions = getSubscriptions();
   const now = new Date();
+  now.setHours(0, 0, 0, 0);
   const futureDate = new Date(now);
   futureDate.setDate(futureDate.getDate() + days);
   
@@ -384,15 +364,14 @@ export const getSubscriptionsDueForRenewal = (days: number): Subscription[] => {
     if (sub.status !== 'active' && sub.status !== 'trial') return false;
     
     const nextBillingDate = new Date(sub.nextBillingDate);
+    nextBillingDate.setHours(0, 0, 0, 0);
     
-    // For subscriptions that are due today or overdue, only include if within the past 7 days
-    if (nextBillingDate < now) {
+    if (nextBillingDate <= now) {
       const daysSinceRenewal = calculateDaysBetween(nextBillingDate, now);
-      return daysSinceRenewal <= 7; // Only include if within a week of being overdue
+      return daysSinceRenewal <= 7;
     }
     
-    // For future renewals, include if they're within the specified days window
-    return nextBillingDate >= now && nextBillingDate <= futureDate;
+    return nextBillingDate > now && nextBillingDate <= futureDate;
   }).sort((a, b) => new Date(a.nextBillingDate).getTime() - new Date(b.nextBillingDate).getTime());
   
   return result;

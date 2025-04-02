@@ -28,10 +28,14 @@ const RenewalTimeline: React.FC<RenewalTimelineProps> = ({ onEditSubscription })
 
   // Helper function to calculate exact days between two dates
   const calculateDaysBetween = (startDate: Date, endDate: Date): number => {
-    // Get time differences in milliseconds
-    const diffTime = endDate.getTime() - startDate.getTime();
-    // Convert to days and round to get whole days
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    // Get time differences in milliseconds and set to start of day for both dates
+    const start = new Date(startDate.setHours(0, 0, 0, 0));
+    const end = new Date(endDate.setHours(0, 0, 0, 0));
+    
+    // Calculate difference in days
+    const diffTime = end.getTime() - start.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    
     // Ensure we never return negative values - return 0 as minimum
     return Math.max(0, diffDays);
   };

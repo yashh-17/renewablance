@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { 
   Card, 
@@ -60,9 +59,14 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   });
 
   const calculateDaysBetween = (startDate: Date, endDate: Date): number => {
-    const diffTime = endDate.getTime() - startDate.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    // Ensure we never return negative values
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    
+    const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+    
+    const diffTime = end.getTime() - start.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
     return Math.max(0, diffDays);
   };
 
@@ -81,7 +85,6 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       const daysToRenewal = calculateDaysBetween(now, renewalDate);
       const isPastDue = renewalDate < now;
       
-      // Only create alerts for renewals within 7 days or ones that are due/overdue
       if (daysToRenewal <= 7 || isPastDue) {
         const alertId = `renewal-${sub.id}-${renewalDate.toISOString()}`;
         
