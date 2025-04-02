@@ -49,13 +49,15 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     checkedRenewalsDates: Record<string, boolean>;
     processedAlertIds: Set<string>;
     lastEventTimestamp: number;
+    dismissedAlertIds: Set<string>;
   }>({ 
     totalSpend: 0, 
     count: 0, 
     subscriptionIds: [],
     checkedRenewalsDates: {},
     processedAlertIds: new Set(),
-    lastEventTimestamp: 0
+    lastEventTimestamp: 0,
+    dismissedAlertIds: new Set()
   });
 
   const calculateDaysBetween = (startDate: Date, endDate: Date): number => {
@@ -74,6 +76,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     const now = new Date();
     const newAlerts: Alert[] = [];
     const processedAlertIds = new Set(lastData.processedAlertIds);
+    const dismissedAlertIds = new Set(lastData.dismissedAlertIds);
     
     console.log('Generating alerts, force?', forceRegenerate, 'Current subs:', currentSubscriptions.length);
     
@@ -87,6 +90,11 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       
       if (daysToRenewal <= 7 || isPastDue) {
         const alertId = `renewal-${sub.id}-${renewalDate.toISOString()}`;
+        
+        if (dismissedAlertIds.has(alertId)) {
+          console.log('Skipping alert, already dismissed:', alertId);
+          return;
+        }
         
         if (!forceRegenerate && processedAlertIds.has(alertId)) {
           console.log('Skipping alert, already processed:', alertId);
@@ -297,13 +305,15 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       subscriptionIds: currentSubscriptions.map(sub => sub.id),
       checkedRenewalsDates: checkedRenewalsDates,
       processedAlertIds: processedAlertIds,
-      lastEventTimestamp: Date.now()
+      lastEventTimestamp: Date.now(),
+      dismissedAlertIds: dismissedAlertIds
     });
     
     setAlerts(prevAlerts => {
       const oldAlerts = prevAlerts.filter(alert => 
         !alert.read && 
-        !newAlerts.some(newAlert => newAlert.id === alert.id)
+        !newAlerts.some(newAlert => newAlert.id === alert.id) &&
+        !dismissedAlertIds.has(alert.id)
       );
       
       return [...newAlerts, ...oldAlerts].sort((a, b) => 
@@ -332,6 +342,19 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   }, [generateAlerts, lastData.lastEventTimestamp]);
 
   useEffect(() => {
+    const savedDismissedAlerts = localStorage.getItem('dismissedAlertIds');
+    if (savedDismissedAlerts) {
+      try {
+        const dismissedIds = JSON.parse(savedDismissedAlerts);
+        setLastData(prev => ({
+          ...prev,
+          dismissedAlertIds: new Set(dismissedIds)
+        }));
+      } catch (e) {
+        console.error('Error parsing dismissed alerts', e);
+      }
+    }
+
     const currentSubscriptions = getSubscriptions();
     setSubscriptions(currentSubscriptions);
     
@@ -371,9 +394,19 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   }, [loadData, forceRefresh]);
 
   const markAsRead = (alertId: string) => {
-    setAlerts(prevAlerts => prevAlerts.map(alert => 
-      alert.id === alertId ? { ...alert, read: true } : alert
-    ));
+    setAlerts(prevAlerts => prevAlerts.filter(alert => alert.id !== alertId));
+
+    setLastData(prev => {
+      const updatedDismissedIds = new Set(prev.dismissedAlertIds);
+      updatedDismissedIds.add(alertId);
+      
+      localStorage.setItem('dismissedAlertIds', JSON.stringify([...updatedDismissedIds]));
+      
+      return {
+        ...prev,
+        dismissedAlertIds: updatedDismissedIds
+      };
+    });
   };
 
   const getAlertIcon = (type: string) => {
