@@ -207,6 +207,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     }
     
     if (lastData.subscriptionIds.length > 0) {
+      const currentIds = currentSubscriptions.map(sub => sub.id);
       const newSubIds = currentIds.filter(id => !lastData.subscriptionIds.includes(id));
       
       if (newSubIds.length > 0) {
@@ -215,6 +216,11 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
         
         newSubscriptions.forEach(newSub => {
           const newSubAlertId = `new-sub-${newSub.id}`;
+          
+          if (dismissedAlertIds.has(newSubAlertId)) {
+            console.log('Skipping alert, already dismissed:', newSubAlertId);
+            return;
+          }
           
           if (!processedAlertIds.has(newSubAlertId)) {
             console.log('Adding new subscription alert for', newSub.name);
@@ -310,13 +316,16 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     });
     
     setAlerts(prevAlerts => {
-      const oldAlerts = prevAlerts.filter(alert => 
+      const filteredPrevAlerts = prevAlerts.filter(alert => 
         !alert.read && 
-        !newAlerts.some(newAlert => newAlert.id === alert.id) &&
         !dismissedAlertIds.has(alert.id)
       );
       
-      return [...newAlerts, ...oldAlerts].sort((a, b) => 
+      const filteredNewAlerts = newAlerts.filter(alert => 
+        !dismissedAlertIds.has(alert.id)
+      );
+      
+      return [...filteredNewAlerts, ...filteredPrevAlerts].sort((a, b) => 
         b.date.getTime() - a.date.getTime()
       );
     });
@@ -407,6 +416,8 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
         dismissedAlertIds: updatedDismissedIds
       };
     });
+    
+    toast.success("Notification dismissed");
   };
 
   const getAlertIcon = (type: string) => {
@@ -483,7 +494,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
           </div>
         ) : (
           <div className="space-y-4">
-            {alerts.filter(alert => !alert.read).map(alert => (
+            {alerts.map(alert => (
               <div 
                 key={alert.id} 
                 className={`p-3 rounded-lg hover:bg-muted/50 transition-colors ${getAlertBackground(alert.type)}`}
@@ -525,7 +536,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
               </div>
             ))}
             
-            {unreadAlertsCount === 0 && (
+            {unreadAlertsCount === 0 && alerts.length > 0 && (
               <div className="text-center py-4">
                 <p className="text-muted-foreground">No new alerts</p>
               </div>
