@@ -1,4 +1,5 @@
 
+import React from 'react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import AlertsModule from '@/components/alerts/AlertsModule';
@@ -6,6 +7,7 @@ import RenewalTimeline from '@/components/subscription/RenewalTimeline';
 import DashboardStats from '@/components/dashboard/DashboardStats';
 import SubscriptionList from '@/components/subscription/SubscriptionList';
 import RecommendationsSection from './RecommendationsSection';
+import RecentSubscriptions from './RecentSubscriptions'; // Add this import
 import { Subscription } from '@/types/subscription';
 import { IndianRupee } from 'lucide-react';
 
