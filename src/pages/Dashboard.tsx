@@ -1,22 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DashboardHeader from '@/components/dashboard/DashboardHeader';
-import DashboardStats from '@/components/dashboard/DashboardStats';
-import SubscriptionList from '@/components/subscription/SubscriptionList';
+import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import DashboardOverview from '@/components/dashboard/DashboardOverview';
+import SubscriptionsTab from '@/components/dashboard/tabs/SubscriptionsTab';
+import AnalyticsTab from '@/components/dashboard/tabs/AnalyticsTab';
 import SubscriptionForm from '@/components/subscription/SubscriptionForm';
-import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
-import TopNavBar from '@/components/dashboard/TopNavBar';
-import RenewalTimeline from '@/components/subscription/RenewalTimeline';
-import AlertsModule from '@/components/alerts/AlertsModule';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { toast } from 'sonner';
-import { ArrowRight, CheckCircle2, AlertCircle, IndianRupee } from 'lucide-react';
 import { Subscription } from '@/types/subscription';
 import { getSubscriptions, saveSubscription, deleteSubscription } from '@/services/subscriptionService';
 import { getRecommendations } from '@/services/recommendationService';
 import { useToast } from "@/hooks/use-toast";
+import { toast } from 'sonner';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -88,14 +82,14 @@ const Dashboard = () => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
   
-  const loadSubscriptions = useCallback(() => {
+  const loadSubscriptions = () => {
     console.log('Loading subscriptions in Dashboard');
     const subs = getSubscriptions();
     setSubscriptions(subs);
     
     const recs = getRecommendations(subs);
     setRecommendations(recs);
-  }, []);
+  };
   
   const handleAddSubscription = () => {
     setIsTopBarEditMode(false);
@@ -227,130 +221,42 @@ const Dashboard = () => {
     }
   };
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'analytics':
-        return <AnalyticsDashboard subscriptions={subscriptions} />;
-      case 'subscriptions':
-        return (
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Your Subscriptions</h2>
-            </div>
-            
-            <SubscriptionList 
-              subscriptions={subscriptions}
-              onEdit={handleEditSubscription}
-              onDelete={handleDeleteSubscription}
-              searchTerm={searchTerm}
-            />
-          </div>
-        );
-      default: // overview
-        return (
-          <div className="space-y-8">
-            {monthlyBudget !== null && totalMonthlySpend > 0 && (
-              <Alert className={totalMonthlySpend > monthlyBudget ? "border-destructive" : "border-success-500"}>
-                <div className="flex items-center">
-                  <IndianRupee className="h-4 w-4 mr-2" />
-                  <AlertTitle>Monthly Budget: ₹{monthlyBudget.toFixed(2)}</AlertTitle>
-                </div>
-                <AlertDescription>
-                  Current monthly spending: ₹{totalMonthlySpend.toFixed(2)} 
-                  {totalMonthlySpend > monthlyBudget ? (
-                    <span className="text-destructive ml-1">
-                      (₹{(totalMonthlySpend - monthlyBudget).toFixed(2)} over budget)
-                    </span>
-                  ) : (
-                    <span className="text-success-500 ml-1">
-                      (₹{(monthlyBudget - totalMonthlySpend).toFixed(2)} under budget)
-                    </span>
-                  )}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="md:col-span-2">
-                <AlertsModule onEditSubscription={handleEditSubscription} />
-              </div>
-              <div>
-                <RenewalTimeline onEditSubscription={handleEditSubscription} />
-              </div>
-            </div>
-            
-            <DashboardStats subscriptions={subscriptions} />
-            
-            {recommendations.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">Recommendations</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {recommendations.map((rec) => (
-                    <Card key={rec.id} className="border-l-4 border-l-warning-500 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center">
-                          <AlertCircle className="h-5 w-5 mr-2 text-warning-500" />
-                          {rec.type === 'underutilized' ? 'Low Usage Detected' : 
-                           rec.type === 'duplicate' ? 'Duplicate Services' : 
-                           'Budget Recommendation'}
-                        </CardTitle>
-                        <CardDescription>{rec.message.replace(/\$/g, '₹')}</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <Button 
-                          variant="outline" 
-                          className="p-2 h-auto font-normal text-brand-600 rounded-md hover:bg-brand-50 w-full justify-start"
-                          onClick={() => handleRecommendationAction(rec)}
-                        >
-                          {rec.action} <ArrowRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Recent Subscriptions</h2>
-                <Button 
-                  onClick={() => setActiveTab('subscriptions')}
-                  variant="outline"
-                  className="rounded-md"
-                >
-                  View All
-                </Button>
-              </div>
-              
-              <SubscriptionList 
-                subscriptions={subscriptions.slice(0, 3)}
-                onEdit={handleEditSubscription}
-                onDelete={handleDeleteSubscription}
-              />
-            </div>
-          </div>
-        );
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <DashboardHeader />
+    <DashboardLayout>
+      <TopNavBar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onAddSubscription={handleAddSubscription}
+        onEditSubscription={handleEditFromTopBar}
+        onSearch={handleSearch}
+      />
       
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <TopNavBar 
-          activeTab={activeTab} 
-          onTabChange={setActiveTab} 
-          onAddSubscription={handleAddSubscription}
-          onEditSubscription={handleEditFromTopBar}
-          onSearch={handleSearch}
-        />
+      <div className="mt-6">
+        {activeTab === 'overview' && (
+          <DashboardOverview
+            subscriptions={subscriptions}
+            recommendations={recommendations}
+            monthlyBudget={monthlyBudget}
+            totalMonthlySpend={totalMonthlySpend}
+            handleEditSubscription={handleEditSubscription}
+            handleRecommendationAction={handleRecommendationAction}
+            onViewAllClick={() => setActiveTab('subscriptions')}
+          />
+        )}
         
-        <div className="mt-6">
-          {renderTabContent()}
-        </div>
-      </main>
+        {activeTab === 'analytics' && (
+          <AnalyticsTab subscriptions={subscriptions} />
+        )}
+        
+        {activeTab === 'subscriptions' && (
+          <SubscriptionsTab
+            subscriptions={subscriptions}
+            searchTerm={searchTerm}
+            onEdit={handleEditSubscription}
+            onDelete={handleDeleteSubscription}
+          />
+        )}
+      </div>
       
       <SubscriptionForm
         open={formOpen}
@@ -360,8 +266,11 @@ const Dashboard = () => {
         isEditMode={isTopBarEditMode}
         availableSubscriptions={subscriptions}
       />
-    </div>
+    </DashboardLayout>
   );
 };
+
+// Import this directly here to avoid circular dependencies
+import TopNavBar from '@/components/dashboard/TopNavBar';
 
 export default Dashboard;
