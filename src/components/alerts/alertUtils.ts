@@ -70,3 +70,9 @@ export const loadDismissedAlertsFromStorage = (): Set<string> => {
 export const saveDismissedAlertsToStorage = (dismissedAlertIds: Set<string>): void => {
   localStorage.setItem('dismissedAlertIds', JSON.stringify([...dismissedAlertIds]));
 };
+
+// Helper to create a unique alert ID based on the subscription and event type
+export const createUniqueAlertId = (type: string, subscriptionId: string, eventDetail?: string): string => {
+  const timestamp = Math.floor(Date.now() / 1000 / 60); // Round to the minute to prevent duplicates in short time spans
+  return `${type}-${subscriptionId}-${eventDetail || ''}-${timestamp}`;
+};

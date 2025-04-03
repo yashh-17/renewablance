@@ -15,6 +15,7 @@ export const generateRenewalAlerts = (
 ) => {
   const newAlerts: Alert[] = [];
   const checkedRenewalsDates = { ...lastData.checkedRenewalsDates };
+  const processedToasts = new Set<string>();
 
   subscriptions.forEach(sub => {
     const renewalDate = new Date(sub.nextBillingDate);
@@ -59,13 +60,22 @@ export const generateRenewalAlerts = (
         
         processedAlertIds.add(alertId);
         
-        if ((daysToRenewal <= 3 || isPastDue) && !lastData.checkedRenewalsDates[checkedKey] && showToast) {
+        // Add toast to a list of processed toasts to avoid duplicates
+        const toastKey = `toast-${alertId}`;
+        
+        if ((daysToRenewal <= 3 || isPastDue) && 
+            !lastData.checkedRenewalsDates[checkedKey] && 
+            showToast && 
+            !processedToasts.has(toastKey)) {
+          
           console.log('Showing toast for urgent renewal:', sub.name);
           showToast(
             `${sub.name} renewal reminder`,
             `Your subscription will renew ${dayMessage}.`,
             "default"
           );
+          
+          processedToasts.add(toastKey);
         }
       }
       

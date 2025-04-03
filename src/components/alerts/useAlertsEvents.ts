@@ -31,32 +31,48 @@ export const useAlertsEvents = (
       loadData();
     }, 100);
     
+    // Track the last time an event was processed to prevent duplicates
+    let lastProcessedTime = Date.now();
+    const THROTTLE_TIME = 1000; // 1 second throttle
+    
+    // Throttled event handler to prevent multiple rapid executions
+    const throttledEventHandler = () => {
+      const now = Date.now();
+      if (now - lastProcessedTime > THROTTLE_TIME) {
+        console.log('Processing subscription event at', new Date().toISOString());
+        lastProcessedTime = now;
+        forceRefresh();
+      } else {
+        console.log('Throttling event, last processed:', new Date(lastProcessedTime).toISOString());
+      }
+    };
+    
     // Define all event handlers
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key && event.key.includes('subscriptions_')) {
         console.log('Storage change detected in AlertsModule');
-        forceRefresh();
+        throttledEventHandler();
       }
     };
     
     const handleCustomEvent = () => {
       console.log('Subscription updated event received in AlertsModule');
-      forceRefresh();
+      throttledEventHandler();
     };
     
     const handleRenewalDetected = () => {
       console.log('Renewal detected event received in AlertsModule');
-      forceRefresh();
+      // We don't need to handle this separately as subscription-updated will be triggered
     };
     
     const handleNewSubscription = (event: CustomEvent) => {
       console.log('New subscription event received in AlertsModule', event.detail);
-      forceRefresh();
+      throttledEventHandler();
     };
     
     const handleSubscriptionDeleted = (event: CustomEvent) => {
       console.log('Subscription deleted event received in AlertsModule', event.detail);
-      forceRefresh();
+      throttledEventHandler();
     };
     
     // Add event listeners
@@ -66,11 +82,13 @@ export const useAlertsEvents = (
     window.addEventListener('new-subscription-added', handleNewSubscription as EventListener);
     window.addEventListener('subscription-deleted', handleSubscriptionDeleted as EventListener);
     
-    // Periodic refresh interval
-    const intervalId = setInterval(loadData, 30000);
+    // Reduce the frequency of periodic refreshes
+    const intervalId = setInterval(loadData, 60000); // Increase to 1 minute
     
     // Force immediate check after mount
-    forceRefresh();
+    setTimeout(() => {
+      forceRefresh();
+    }, 500);
     
     // Cleanup
     return () => {

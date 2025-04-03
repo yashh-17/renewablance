@@ -13,6 +13,7 @@ export const generateNewSubscriptionAlerts = (
   showToast?: (title: string, description: string, variant?: "default" | "destructive") => void
 ) => {
   const newAlerts: Alert[] = [];
+  const processedToasts = new Set<string>();
   
   if (lastData.subscriptionIds.length > 0) {
     const currentIds = currentSubscriptions.map(sub => sub.id);
@@ -45,6 +46,16 @@ export const generateNewSubscriptionAlerts = (
           
           processedAlertIds.add(newSubAlertId);
           
+          const toastKey = `toast-${newSubAlertId}`;
+          if (showToast && !processedToasts.has(toastKey)) {
+            showToast(
+              'New subscription added',
+              `You've added ${newSub.name} to your subscriptions.`,
+              "default"
+            );
+            processedToasts.add(toastKey);
+          }
+          
           const renewalDate = new Date(newSub.nextBillingDate);
           const daysToRenewal = calculateDaysBetween(now, renewalDate);
           
@@ -69,13 +80,15 @@ export const generateNewSubscriptionAlerts = (
               
               processedAlertIds.add(renewalAlertId);
               
-              if (daysToRenewal <= 3 && showToast) {
+              const renewalToastKey = `toast-${renewalAlertId}`;
+              if (daysToRenewal <= 3 && showToast && !processedToasts.has(renewalToastKey)) {
                 console.log('Showing toast for urgent renewal of new subscription:', newSub.name);
                 showToast(
                   `${newSub.name} renewal reminder`,
                   `Your new subscription will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}.`,
                   "default"
                 );
+                processedToasts.add(renewalToastKey);
               }
             }
           }

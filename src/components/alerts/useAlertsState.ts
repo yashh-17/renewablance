@@ -31,11 +31,16 @@ export const useAlertsState = () => {
         !lastData.dismissedAlertIds.has(alert.id)
       );
       
-      const filteredNewAlerts = newAlerts.filter(alert => 
-        !lastData.dismissedAlertIds.has(alert.id)
+      // Create a Set of existing alert IDs for deduplication
+      const existingAlertIds = new Set(filteredPrevAlerts.map(alert => alert.id));
+      
+      // Filter out any new alerts that already exist
+      const uniqueNewAlerts = newAlerts.filter(alert => 
+        !lastData.dismissedAlertIds.has(alert.id) && 
+        !existingAlertIds.has(alert.id)
       );
       
-      return [...filteredNewAlerts, ...filteredPrevAlerts].sort((a, b) => 
+      return [...uniqueNewAlerts, ...filteredPrevAlerts].sort((a, b) => 
         b.date.getTime() - a.date.getTime()
       );
     });

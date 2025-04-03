@@ -41,25 +41,10 @@ const SubscriptionFormContainer = ({ onSave, subscriptions }: SubscriptionFormCo
     onSave(subscription);
     handleCloseForm();
     
-    // Ensure events are triggered for the alerts system
+    // Ensure events are triggered for the alerts system - just once, with proper throttling
     setTimeout(() => {
+      // Only need to dispatch one event - the alerts system should handle all cases
       window.dispatchEvent(new CustomEvent('subscription-updated'));
-      
-      // If it's a new subscription, trigger a specific event
-      if (!selectedSubscription) {
-        window.dispatchEvent(new CustomEvent('new-subscription-added', {
-          detail: { subscription }
-        }));
-      }
-      
-      // Check if this subscription will renew soon
-      const nextBillingDate = new Date(subscription.nextBillingDate);
-      const now = new Date();
-      const daysToRenewal = Math.floor((nextBillingDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (daysToRenewal <= 7) {
-        window.dispatchEvent(new CustomEvent('renewal-detected'));
-      }
     }, 200);
   };
 
