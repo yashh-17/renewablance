@@ -40,6 +40,27 @@ const SubscriptionFormContainer = ({ onSave, subscriptions }: SubscriptionFormCo
   const handleSaveSubscription = (subscription: Subscription) => {
     onSave(subscription);
     handleCloseForm();
+    
+    // Ensure events are triggered for the alerts system
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('subscription-updated'));
+      
+      // If it's a new subscription, trigger a specific event
+      if (!selectedSubscription) {
+        window.dispatchEvent(new CustomEvent('new-subscription-added', {
+          detail: { subscription }
+        }));
+      }
+      
+      // Check if this subscription will renew soon
+      const nextBillingDate = new Date(subscription.nextBillingDate);
+      const now = new Date();
+      const daysToRenewal = Math.floor((nextBillingDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysToRenewal <= 7) {
+        window.dispatchEvent(new CustomEvent('renewal-detected'));
+      }
+    }, 200);
   };
 
   return {
@@ -50,6 +71,7 @@ const SubscriptionFormContainer = ({ onSave, subscriptions }: SubscriptionFormCo
     handleEditFromTopBar,
     handleEditSubscription,
     handleCloseForm,
+    handleSaveSubscription,
     form: (
       <SubscriptionForm
         open={formOpen}

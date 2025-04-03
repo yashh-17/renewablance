@@ -1,4 +1,5 @@
-import { useCallback } from 'react';
+
+import { useCallback, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -7,7 +8,7 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Bell } from 'lucide-react';
-import { toast } from 'sonner';
+import { useToast } from "@/hooks/use-toast";
 import { getSubscriptions } from '@/services/subscriptionService';
 import { Alert, AlertsModuleProps } from './types';
 import AlertsList from './AlertsList';
@@ -16,6 +17,7 @@ import { useAlertGenerator } from './useAlertGenerator';
 import { useAlertsEvents } from './useAlertsEvents';
 
 const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
+  const { toast } = useToast();
   const { 
     alerts, 
     subscriptions, 
@@ -38,8 +40,20 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     updateSubscriptions(currentSubscriptions);
     
     const newAlerts = generateAlerts(currentSubscriptions, false);
-    updateAlerts(newAlerts);
-  }, [generateAlerts, updateAlerts, updateSubscriptions]);
+    
+    if (newAlerts.length > 0) {
+      console.log(`Generated ${newAlerts.length} new alerts`);
+      updateAlerts(newAlerts);
+      
+      // Show a toast for the most recent alert if it's new
+      if (newAlerts.length > 0 && newAlerts[0].date.getTime() > Date.now() - 5000) {
+        toast({
+          title: newAlerts[0].title,
+          description: newAlerts[0].message,
+        });
+      }
+    }
+  }, [generateAlerts, updateAlerts, updateSubscriptions, toast]);
 
   const forceRefresh = useCallback(() => {
     console.log('Force refreshing alerts');
@@ -52,8 +66,19 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     updateSubscriptions(currentSubscriptions);
     
     const newAlerts = generateAlerts(currentSubscriptions, true);
+    console.log(`Force refreshed and generated ${newAlerts.length} alerts`);
+    
     updateAlerts(newAlerts);
-  }, [generateAlerts, lastData.lastEventTimestamp, updateAlerts, updateSubscriptions]);
+    
+    // Show toast for the most recent alert if it exists
+    if (newAlerts.length > 0) {
+      const mostRecent = newAlerts[0];
+      toast({
+        title: mostRecent.title,
+        description: mostRecent.message,
+      });
+    }
+  }, [generateAlerts, lastData.lastEventTimestamp, updateAlerts, updateSubscriptions, toast]);
 
   const { updateDismissedAlert } = useAlertsEvents(
     loadData, 
@@ -62,10 +87,26 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     updateLastData
   );
 
+  // Effect to show existing alerts on mount
+  useEffect(() => {
+    if (alerts.length > 0) {
+      const unreadAlerts = alerts.filter(alert => !alert.read);
+      if (unreadAlerts.length > 0) {
+        toast({
+          title: `${unreadAlerts.length} Unread Alerts`,
+          description: "You have unread notifications in your alerts center"
+        });
+      }
+    }
+  }, []);
+
   const markAsRead = (alertId: string) => {
     setAlerts(prevAlerts => prevAlerts.filter(alert => alert.id !== alertId));
     updateDismissedAlert(alertId);
-    toast.success("Notification dismissed");
+    toast({
+      title: "Alert Dismissed",
+      description: "Notification has been marked as read"
+    });
   };
 
   const handleAction = (alert: Alert) => {

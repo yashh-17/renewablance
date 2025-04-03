@@ -1,15 +1,13 @@
-
 import { useState, useEffect } from 'react';
 import { Subscription } from '@/types/subscription';
 import { getSubscriptions, saveSubscription, deleteSubscription } from '@/services/subscriptionService';
 import { getRecommendations } from '@/services/recommendationService';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import { useToast } from "@/hooks/use-toast";
 
 export const useDashboardData = () => {
   const navigate = useNavigate();
-  const { toast: uiToast } = useToast();
+  const { toast } = useToast();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [monthlyBudget, setMonthlyBudget] = useState<number | null>(null);
@@ -94,15 +92,15 @@ export const useDashboardData = () => {
       
       const isNewSubscription = !selectedSubscription && !isTopBarEditMode;
       
-      toast.success(
-        selectedSubscription || (isTopBarEditMode && subscription.id !== Date.now().toString())
-          ? `Updated ${subscription.name} subscription` 
-          : `Added ${subscription.name} subscription`,
-        {
-          className: "animate-bounce-subtle",
-          position: "top-center",
-        }
-      );
+      // Show toast notification for add/update
+      toast({
+        title: isNewSubscription ? "Subscription Added" : "Subscription Updated",
+        description: `Successfully ${isNewSubscription ? 'added' : 'updated'} ${subscription.name} subscription`,
+      });
+      
+      // Trigger events to update alerts
+      console.log('Dispatching subscription-updated event after save');
+      window.dispatchEvent(new CustomEvent('subscription-updated'));
       
       if (isNewSubscription) {
         const nextBillingDate = new Date(subscription.nextBillingDate);
@@ -112,7 +110,7 @@ export const useDashboardData = () => {
         if (daysToRenewal <= 7) {
           setTimeout(() => {
             console.log('Showing toast for new subscription renewal:', subscription.name, 'days:', daysToRenewal);
-            uiToast({
+            toast({
               title: "Renewal Notice",
               description: `Your new subscription to ${subscription.name} will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}.`,
               variant: "default",
@@ -121,39 +119,51 @@ export const useDashboardData = () => {
             window.dispatchEvent(new CustomEvent('renewal-detected'));
           }, 500);
         }
+        
+        // Additional event for alerts module
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('new-subscription-added', {
+            detail: { subscription }
+          }));
+        }, 300);
       }
-      
-      console.log('Dispatching subscription-updated event after save');
-      window.dispatchEvent(new CustomEvent('subscription-updated'));
       
       setTimeout(() => {
         console.log('Dispatching delayed subscription-updated event');
         window.dispatchEvent(new CustomEvent('subscription-updated'));
-        
         window.dispatchEvent(new CustomEvent('renewal-detected'));
       }, 1000);
-      
-      if (isNewSubscription) {
-        setTimeout(() => {
-          console.log('Final event dispatch check');
-          window.dispatchEvent(new CustomEvent('subscription-updated'));
-          window.dispatchEvent(new CustomEvent('renewal-detected'));
-        }, 2000);
-      }
     } catch (error) {
-      toast.error('Error saving subscription');
+      toast({
+        title: "Error",
+        description: "Error saving subscription",
+        variant: "destructive",
+      });
       console.error(error);
     }
   };
 
   const handleDeleteSubscription = (id: string) => {
     try {
+      const subscription = subscriptions.find(sub => sub.id === id);
       deleteSubscription(id);
       loadSubscriptions();
       
+      toast({
+        title: "Subscription Deleted",
+        description: subscription ? `Successfully removed ${subscription.name} subscription` : "Subscription removed",
+      });
+      
       window.dispatchEvent(new CustomEvent('subscription-updated'));
+      window.dispatchEvent(new CustomEvent('subscription-deleted', { 
+        detail: { subscriptionId: id }
+      }));
     } catch (error) {
-      toast.error('Error deleting subscription');
+      toast({
+        title: "Error",
+        description: "Error deleting subscription",
+        variant: "destructive",
+      });
       console.error(error);
     }
   };

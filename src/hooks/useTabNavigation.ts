@@ -1,16 +1,20 @@
 
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { useToast } from "@/hooks/use-toast";
 
 export const useTabNavigation = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
+  const { toast } = useToast();
   
   const handleSearch = (term: string) => {
     setSearchTerm(term);
     if (activeTab !== 'subscriptions') {
       setActiveTab('subscriptions');
-      toast.info('Switched to Subscriptions tab to show search results');
+      toast({
+        title: "Search Results",
+        description: "Switched to Subscriptions tab to show search results",
+      });
     }
   };
   
@@ -20,11 +24,17 @@ export const useTabNavigation = () => {
         return { action: 'edit', subscriptionId: rec.subscriptionId };
       case 'duplicate':
         setActiveTab('subscriptions');
-        toast.info(`Switched to Subscriptions tab to review your ${rec.category} subscriptions`);
+        toast({
+          title: "Category Focus",
+          description: `Switched to Subscriptions tab to review your ${rec.category} subscriptions`,
+        });
         return { action: 'none' };
       case 'budget':
         setActiveTab('analytics');
-        toast.info('Switched to Analytics tab to review your spending');
+        toast({
+          title: "Budget Analysis",
+          description: 'Switched to Analytics tab to review your spending',
+        });
         return { action: 'none' };
       default:
         return { action: 'none' };
