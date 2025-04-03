@@ -14,7 +14,15 @@ export const useAlertGenerator = (
   updateLastData: (updates: Partial<AlertsState>) => void,
   onEditSubscription?: (subscription: Subscription) => void
 ) => {
-  const { toast: uiToast } = useToast();
+  const { toast } = useToast();
+  
+  const showToast = useCallback((title: string, description: string, variant: "default" | "destructive" = "default") => {
+    toast({
+      title,
+      description,
+      variant,
+    });
+  }, [toast]);
   
   const generateAlerts = useCallback((
     currentSubscriptions: Subscription[], 
@@ -38,7 +46,8 @@ export const useAlertGenerator = (
       dismissedAlertIds,
       now,
       forceRegenerate,
-      onEditSubscription
+      onEditSubscription,
+      showToast
     );
     newAlerts.push(...renewalAlerts);
     
@@ -60,7 +69,8 @@ export const useAlertGenerator = (
       processedAlertIds,
       dismissedAlertIds,
       now,
-      onEditSubscription
+      onEditSubscription,
+      showToast
     );
     newAlerts.push(...newSubscriptionAlerts);
     
@@ -84,7 +94,7 @@ export const useAlertGenerator = (
     });
     
     return newAlerts;
-  }, [lastData, onEditSubscription, uiToast, updateLastData]);
+  }, [lastData, onEditSubscription, showToast, updateLastData]);
 
   return { generateAlerts };
 };

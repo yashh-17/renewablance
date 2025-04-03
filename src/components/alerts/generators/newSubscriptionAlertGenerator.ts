@@ -2,7 +2,6 @@
 import { Subscription } from "@/types/subscription";
 import { Alert, AlertsState } from '../types';
 import { calculateDaysBetween } from '../alertUtils';
-import { useToast } from "@/hooks/use-toast";
 
 export const generateNewSubscriptionAlerts = (
   currentSubscriptions: Subscription[],
@@ -10,10 +9,10 @@ export const generateNewSubscriptionAlerts = (
   processedAlertIds: Set<string>,
   dismissedAlertIds: Set<string>,
   now: Date,
-  onEditSubscription?: (subscription: Subscription) => void
+  onEditSubscription?: (subscription: Subscription) => void,
+  showToast?: (title: string, description: string, variant?: "default" | "destructive") => void
 ) => {
   const newAlerts: Alert[] = [];
-  const { toast } = useToast();
   
   if (lastData.subscriptionIds.length > 0) {
     const currentIds = currentSubscriptions.map(sub => sub.id);
@@ -70,13 +69,13 @@ export const generateNewSubscriptionAlerts = (
               
               processedAlertIds.add(renewalAlertId);
               
-              if (daysToRenewal <= 3) {
+              if (daysToRenewal <= 3 && showToast) {
                 console.log('Showing toast for urgent renewal of new subscription:', newSub.name);
-                toast({
-                  title: `${newSub.name} renewal reminder`,
-                  description: `Your new subscription will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}.`,
-                  variant: "default"
-                });
+                showToast(
+                  `${newSub.name} renewal reminder`,
+                  `Your new subscription will renew in ${daysToRenewal} day${daysToRenewal !== 1 ? 's' : ''}.`,
+                  "default"
+                );
               }
             }
           }
