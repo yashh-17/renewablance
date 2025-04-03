@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Subscription } from '@/types/subscription';
 import { getSubscriptions, saveSubscription, deleteSubscription } from '@/services/subscriptionService';
@@ -48,12 +49,11 @@ export const useDashboardData = () => {
       
       // Check if exceeding budget
       if (monthlyBudget !== null && monthlyTotal > monthlyBudget) {
-        toast.warning(
-          `You are exceeding your monthly budget of ₹${monthlyBudget.toFixed(2)} by ₹${(monthlyTotal - monthlyBudget).toFixed(2)}`,
-          {
-            duration: 5000,
-          }
-        );
+        toast({
+          title: "Budget Alert",
+          description: `You are exceeding your monthly budget of ₹${monthlyBudget.toFixed(2)} by ₹${(monthlyTotal - monthlyBudget).toFixed(2)}`,
+          variant: "destructive",
+        });
       }
     }
   }, [subscriptions, monthlyBudget]);
