@@ -1,5 +1,4 @@
 
-import { Subscription } from "@/types/subscription";
 import { Alert } from "./types";
 
 export const calculateDaysBetween = (startDate: Date, endDate: Date): number => {
@@ -71,8 +70,18 @@ export const saveDismissedAlertsToStorage = (dismissedAlertIds: Set<string>): vo
   localStorage.setItem('dismissedAlertIds', JSON.stringify([...dismissedAlertIds]));
 };
 
-// Helper to create a unique alert ID based on the subscription and event type
+// Improved helper to create a unique alert ID based on the subscription and event type
 export const createUniqueAlertId = (type: string, subscriptionId: string, eventDetail?: string): string => {
-  const timestamp = Math.floor(Date.now() / 1000 / 60); // Round to the minute to prevent duplicates in short time spans
-  return `${type}-${subscriptionId}-${eventDetail || ''}-${timestamp}`;
+  const today = new Date();
+  // Use date parts for more stable IDs across page reloads
+  const dateKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+  
+  // For renewal alerts, include only date info and not timestamp to prevent duplicates
+  if (type === 'renewal') {
+    return `${type}-${subscriptionId}-${eventDetail || ''}-${dateKey}`;
+  }
+  
+  // For other alerts, we can use a more specific timestamp
+  const timestamp = Math.floor(Date.now() / (1000 * 60 * 5)); // Round to 5-minute periods
+  return `${type}-${subscriptionId}-${eventDetail || ''}-${dateKey}-${timestamp}`;
 };

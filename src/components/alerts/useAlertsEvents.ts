@@ -1,5 +1,5 @@
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { getSubscriptions } from '@/services/subscriptionService';
 import { saveDismissedAlertsToStorage } from './alertUtils';
 import { AlertsState } from './types';
@@ -10,6 +10,49 @@ export const useAlertsEvents = (
   lastData: AlertsState,
   updateLastData: (updates: Partial<AlertsState>) => void
 ) => {
+  // Use refs to track event handling state
+  const processingEvent = useRef(false);
+  const lastProcessedTime = useRef(Date.now());
+  const eventQueue = useRef<Array<() => void>>([]);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Process events in queue with throttling
+  const processEventQueue = useCallback(() => {
+    if (processingEvent.current) return;
+    
+    if (eventQueue.current.length > 0) {
+      processingEvent.current = true;
+      const now = Date.now();
+      
+      // Only process if enough time has passed
+      if (now - lastProcessedTime.current > 1000) {
+        const nextEvent = eventQueue.current.shift();
+        lastProcessedTime.current = now;
+        
+        if (nextEvent) {
+          nextEvent();
+        }
+        
+        // Allow next event after a delay
+        setTimeout(() => {
+          processingEvent.current = false;
+          processEventQueue();
+        }, 500);
+      } else {
+        // If called too soon, wait a bit longer
+        processingEvent.current = false;
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(processEventQueue, 500);
+      }
+    }
+  }, []);
+
+  // Queue an event for processing
+  const queueEvent = useCallback((eventFn: () => void) => {
+    eventQueue.current.push(eventFn);
+    processEventQueue();
+  }, [processEventQueue]);
+
   // Effect for initial load and event listeners
   useEffect(() => {
     const savedDismissedAlerts = localStorage.getItem('dismissedAlertIds');
@@ -24,55 +67,38 @@ export const useAlertsEvents = (
       }
     }
 
-    const currentSubscriptions = getSubscriptions();
-    
     // Initial load with a small delay to ensure DOM is ready
     setTimeout(() => {
       loadData();
-    }, 100);
+    }, 200);
     
-    // Track the last time an event was processed to prevent duplicates
-    let lastProcessedTime = Date.now();
-    const THROTTLE_TIME = 1000; // 1 second throttle
-    
-    // Throttled event handler to prevent multiple rapid executions
-    const throttledEventHandler = () => {
-      const now = Date.now();
-      if (now - lastProcessedTime > THROTTLE_TIME) {
-        console.log('Processing subscription event at', new Date().toISOString());
-        lastProcessedTime = now;
-        forceRefresh();
-      } else {
-        console.log('Throttling event, last processed:', new Date(lastProcessedTime).toISOString());
-      }
-    };
-    
-    // Define all event handlers
+    // Define all event handlers with throttling
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key && event.key.includes('subscriptions_')) {
         console.log('Storage change detected in AlertsModule');
-        throttledEventHandler();
+        queueEvent(() => loadData());
       }
     };
     
     const handleCustomEvent = () => {
       console.log('Subscription updated event received in AlertsModule');
-      throttledEventHandler();
+      queueEvent(() => loadData());
     };
     
     const handleRenewalDetected = () => {
       console.log('Renewal detected event received in AlertsModule');
-      // We don't need to handle this separately as subscription-updated will be triggered
+      // We prioritize loading data here as it's important
+      queueEvent(() => loadData());
     };
     
-    const handleNewSubscription = (event: CustomEvent) => {
-      console.log('New subscription event received in AlertsModule', event.detail);
-      throttledEventHandler();
+    const handleNewSubscription = () => {
+      console.log('New subscription event received in AlertsModule');
+      queueEvent(() => forceRefresh());
     };
     
-    const handleSubscriptionDeleted = (event: CustomEvent) => {
-      console.log('Subscription deleted event received in AlertsModule', event.detail);
-      throttledEventHandler();
+    const handleSubscriptionDeleted = () => {
+      console.log('Subscription deleted event received in AlertsModule');
+      queueEvent(() => loadData());
     };
     
     // Add event listeners
@@ -83,23 +109,25 @@ export const useAlertsEvents = (
     window.addEventListener('subscription-deleted', handleSubscriptionDeleted as EventListener);
     
     // Reduce the frequency of periodic refreshes
-    const intervalId = setInterval(loadData, 60000); // Increase to 1 minute
+    const intervalId = setInterval(() => queueEvent(loadData), 60000); // 1 minute refresh
     
-    // Force immediate check after mount
+    // Force immediate check after mount, with slight delay
     setTimeout(() => {
-      forceRefresh();
+      queueEvent(loadData);
     }, 500);
     
     // Cleanup
     return () => {
+      window.addEventListener('storage', handleStorageChange);
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('subscription-updated', handleCustomEvent);
       window.removeEventListener('renewal-detected', handleRenewalDetected);
       window.removeEventListener('new-subscription-added', handleNewSubscription as EventListener);
       window.removeEventListener('subscription-deleted', handleSubscriptionDeleted as EventListener);
       clearInterval(intervalId);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [loadData, forceRefresh, updateLastData]);
+  }, [loadData, forceRefresh, updateLastData, queueEvent]);
 
   const updateDismissedAlert = useCallback((alertId: string) => {
     updateLastData({

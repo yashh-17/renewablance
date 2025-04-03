@@ -41,11 +41,11 @@ const SubscriptionFormContainer = ({ onSave, subscriptions }: SubscriptionFormCo
     onSave(subscription);
     handleCloseForm();
     
-    // Ensure events are triggered for the alerts system - just once, with proper throttling
-    setTimeout(() => {
-      // Only need to dispatch one event - the alerts system should handle all cases
+    // Only dispatch one event - the alerts system should handle all cases
+    // Use requestAnimationFrame to ensure this happens after the state update
+    requestAnimationFrame(() => {
       window.dispatchEvent(new CustomEvent('subscription-updated'));
-    }, 200);
+    });
   };
 
   return {

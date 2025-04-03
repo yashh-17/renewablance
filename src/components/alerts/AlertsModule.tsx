@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useRef } from 'react';
 import { 
   Card, 
@@ -28,35 +29,58 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   } = useAlertsState();
   
   const shownToastIds = useRef(new Set<string>());
+  const lastRefreshTime = useRef<number>(0);
+  const pendingRefreshTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounce refresh function
+  const debouncedRefresh = useCallback((force = false) => {
+    if (pendingRefreshTimeout.current) {
+      clearTimeout(pendingRefreshTimeout.current);
+    }
+    
+    pendingRefreshTimeout.current = setTimeout(() => {
+      const now = Date.now();
+      if (!force && now - lastRefreshTime.current < 1000) {
+        console.log('Skipping refresh - throttled');
+        return;
+      }
+      
+      lastRefreshTime.current = now;
+      pendingRefreshTimeout.current = null;
+      
+      console.log('Loading subscription data for alerts (debounced)');
+      const currentSubscriptions = getSubscriptions();
+      updateSubscriptions(currentSubscriptions);
+      
+      const newAlerts = generateAlerts(currentSubscriptions, force);
+      
+      if (newAlerts.length > 0) {
+        console.log(`Generated ${newAlerts.length} new alerts`);
+        updateAlerts(newAlerts);
+        
+        // Show toast only for the first new alert that hasn't been shown before
+        const alertToShow = newAlerts.find(alert => !shownToastIds.current.has(alert.id));
+        if (alertToShow) {
+          toast({
+            title: alertToShow.title,
+            description: alertToShow.message,
+          });
+          shownToastIds.current.add(alertToShow.id);
+        }
+      }
+    }, 300); // Short debounce to coalesce rapid events
+  }, [generateAlerts, updateAlerts, updateSubscriptions, toast]);
 
   const { generateAlerts } = useAlertGenerator(
     lastData,
     updateLastData,
-    onEditSubscription
+    onEditSubscription,
+    debouncedRefresh
   );
 
   const loadData = useCallback(() => {
-    console.log('Loading subscription data for alerts');
-    const currentSubscriptions = getSubscriptions();
-    updateSubscriptions(currentSubscriptions);
-    
-    const newAlerts = generateAlerts(currentSubscriptions, false);
-    
-    if (newAlerts.length > 0) {
-      console.log(`Generated ${newAlerts.length} new alerts`);
-      updateAlerts(newAlerts);
-      
-      if (newAlerts.length > 0 && 
-          newAlerts[0].date.getTime() > Date.now() - 5000 &&
-          !shownToastIds.current.has(newAlerts[0].id)) {
-        toast({
-          title: newAlerts[0].title,
-          description: newAlerts[0].message,
-        });
-        shownToastIds.current.add(newAlerts[0].id);
-      }
-    }
-  }, [generateAlerts, updateAlerts, updateSubscriptions, toast]);
+    debouncedRefresh(false);
+  }, [debouncedRefresh]);
 
   const forceRefresh = useCallback(() => {
     console.log('Force refreshing alerts');
@@ -65,23 +89,8 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       return;
     }
     
-    const currentSubscriptions = getSubscriptions();
-    updateSubscriptions(currentSubscriptions);
-    
-    const newAlerts = generateAlerts(currentSubscriptions, true);
-    console.log(`Force refreshed and generated ${newAlerts.length} alerts`);
-    
-    updateAlerts(newAlerts);
-    
-    if (newAlerts.length > 0 && !shownToastIds.current.has(newAlerts[0].id)) {
-      const mostRecent = newAlerts[0];
-      toast({
-        title: mostRecent.title,
-        description: mostRecent.message,
-      });
-      shownToastIds.current.add(mostRecent.id);
-    }
-  }, [generateAlerts, lastData.lastEventTimestamp, updateAlerts, updateSubscriptions, toast]);
+    debouncedRefresh(true);
+  }, [debouncedRefresh, lastData.lastEventTimestamp]);
 
   const { updateDismissedAlert } = useAlertsEvents(
     loadData, 
@@ -90,17 +99,20 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     updateLastData
   );
 
+  // Initial alerts check - show unread count notification only once
   useEffect(() => {
+    // Clear toast IDs on mount
     shownToastIds.current.clear();
     
-    if (alerts.length > 0) {
-      const unreadAlerts = alerts.filter(alert => !alert.read);
-      if (unreadAlerts.length > 0) {
-        toast({
-          title: `${unreadAlerts.length} Unread Alert${unreadAlerts.length > 1 ? 's' : ''}`,
-          description: "You have unread notifications in your alerts center"
-        });
-      }
+    // Load data with a slight delay
+    setTimeout(loadData, 300);
+    
+    const unreadAlerts = alerts.filter(alert => !alert.read);
+    if (unreadAlerts.length > 0) {
+      toast({
+        title: `${unreadAlerts.length} Unread Alert${unreadAlerts.length > 1 ? 's' : ''}`,
+        description: "You have unread notifications in your alerts center"
+      });
     }
   }, []);
 

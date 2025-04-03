@@ -8,11 +8,13 @@ import { generateSpendingAlerts } from './generators/spendingAlertGenerator';
 import { generateNewSubscriptionAlerts } from './generators/newSubscriptionAlertGenerator';
 import { generateMissedPaymentAlerts } from './generators/missedPaymentAlertGenerator';
 import { useToast } from "@/hooks/use-toast";
+import { createUniqueAlertId } from './alertUtils';
 
 export const useAlertGenerator = (
   lastData: AlertsState,
   updateLastData: (updates: Partial<AlertsState>) => void,
-  onEditSubscription?: (subscription: Subscription) => void
+  onEditSubscription?: (subscription: Subscription) => void,
+  onRefresh?: (force: boolean) => void
 ) => {
   const { toast } = useToast();
   
