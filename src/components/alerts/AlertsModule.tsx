@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useRef } from 'react';
 import { 
   Card, 
@@ -134,12 +135,12 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   const unreadAlertsCount = alerts.filter(alert => !alert.read).length;
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-0 shadow-none bg-transparent">
+      <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center">
             <Bell className="h-5 w-5 mr-2 text-brand-500" />
-            Alerts & Notifications Center
+            Notifications
           </CardTitle>
           {unreadAlertsCount > 0 && (
             <span className="px-2 py-1 text-xs bg-brand-500 text-white rounded-full">
@@ -148,7 +149,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
           )}
         </div>
       </CardHeader>
-      <CardContent className="max-h-[400px] overflow-y-auto">
+      <CardContent className="max-h-[400px] overflow-y-auto p-3">
         <AlertsList 
           alerts={alerts} 
           onDismiss={markAsRead} 

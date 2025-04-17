@@ -57,6 +57,21 @@ const Dashboard = () => {
     }
   };
 
+  // Listen for edit-subscription events from alerts
+  useEffect(() => {
+    const handleEditFromAlerts = (event: any) => {
+      if (event.detail?.subscription) {
+        formContainer.handleEditSubscription(event.detail.subscription);
+      }
+    };
+    
+    window.addEventListener('edit-subscription', handleEditFromAlerts as EventListener);
+    
+    return () => {
+      window.removeEventListener('edit-subscription', handleEditFromAlerts as EventListener);
+    };
+  }, []);
+
   return (
     <DashboardLayout>
       <TopNavBar
