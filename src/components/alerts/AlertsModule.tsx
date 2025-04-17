@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useRef } from 'react';
 import { 
   Card, 
@@ -30,6 +31,15 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   const lastRefreshTime = useRef<number>(0);
   const pendingRefreshTimeout = useRef<NodeJS.Timeout | null>(null);
 
+  // First, declare the useAlertGenerator hook so generateAlerts is available
+  const { generateAlerts } = useAlertGenerator(
+    lastData,
+    updateLastData,
+    onEditSubscription,
+    debouncedRefresh // This is fine because we're using useCallback
+  );
+
+  // Now define debouncedRefresh which uses generateAlerts
   const debouncedRefresh = useCallback((force = false) => {
     if (pendingRefreshTimeout.current) {
       clearTimeout(pendingRefreshTimeout.current);
@@ -66,13 +76,6 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       }
     }, 300);
   }, [generateAlerts, updateAlerts, updateSubscriptions, toast]);
-
-  const { generateAlerts } = useAlertGenerator(
-    lastData,
-    updateLastData,
-    onEditSubscription,
-    debouncedRefresh
-  );
 
   const loadData = useCallback(() => {
     debouncedRefresh(false);
