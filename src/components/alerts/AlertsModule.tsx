@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useRef } from 'react';
 import { 
   Card, 
@@ -31,51 +30,56 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   const lastRefreshTime = useRef<number>(0);
   const pendingRefreshTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // First, declare the useAlertGenerator hook so generateAlerts is available
+  // Declare a function to create debouncedRefresh
+  const createDebouncedRefresh = (generateAlertsFunc: ReturnType<typeof useAlertGenerator>['generateAlerts']) => 
+    useCallback((force = false) => {
+      if (pendingRefreshTimeout.current) {
+        clearTimeout(pendingRefreshTimeout.current);
+      }
+      
+      pendingRefreshTimeout.current = setTimeout(() => {
+        const now = Date.now();
+        if (!force && now - lastRefreshTime.current < 1000) {
+          console.log('Skipping refresh - throttled');
+          return;
+        }
+        
+        lastRefreshTime.current = now;
+        pendingRefreshTimeout.current = null;
+        
+        console.log('Loading subscription data for alerts (debounced)');
+        const currentSubscriptions = getSubscriptions();
+        updateSubscriptions(currentSubscriptions);
+        
+        const newAlerts = generateAlertsFunc(currentSubscriptions, force);
+        
+        if (newAlerts.length > 0) {
+          console.log(`Generated ${newAlerts.length} new alerts`);
+          updateAlerts(newAlerts);
+          
+          const alertToShow = newAlerts.find(alert => !shownToastIds.current.has(alert.id));
+          if (alertToShow) {
+            toast({
+              title: alertToShow.title,
+              description: alertToShow.message,
+            });
+            shownToastIds.current.add(alertToShow.id);
+          }
+        }
+      }, 300);
+    }, [updateAlerts, updateSubscriptions, toast]);
+
+  // Use the alert generator hook
   const { generateAlerts } = useAlertGenerator(
     lastData,
     updateLastData,
     onEditSubscription,
-    debouncedRefresh // This is fine because we're using useCallback
+    // Pass the creator function instead of the function itself
+    (force) => debouncedRefresh(force)
   );
 
-  // Now define debouncedRefresh which uses generateAlerts
-  const debouncedRefresh = useCallback((force = false) => {
-    if (pendingRefreshTimeout.current) {
-      clearTimeout(pendingRefreshTimeout.current);
-    }
-    
-    pendingRefreshTimeout.current = setTimeout(() => {
-      const now = Date.now();
-      if (!force && now - lastRefreshTime.current < 1000) {
-        console.log('Skipping refresh - throttled');
-        return;
-      }
-      
-      lastRefreshTime.current = now;
-      pendingRefreshTimeout.current = null;
-      
-      console.log('Loading subscription data for alerts (debounced)');
-      const currentSubscriptions = getSubscriptions();
-      updateSubscriptions(currentSubscriptions);
-      
-      const newAlerts = generateAlerts(currentSubscriptions, force);
-      
-      if (newAlerts.length > 0) {
-        console.log(`Generated ${newAlerts.length} new alerts`);
-        updateAlerts(newAlerts);
-        
-        const alertToShow = newAlerts.find(alert => !shownToastIds.current.has(alert.id));
-        if (alertToShow) {
-          toast({
-            title: alertToShow.title,
-            description: alertToShow.message,
-          });
-          shownToastIds.current.add(alertToShow.id);
-        }
-      }
-    }, 300);
-  }, [generateAlerts, updateAlerts, updateSubscriptions, toast]);
+  // Create the debounced refresh function after generating alerts
+  const debouncedRefresh = createDebouncedRefresh(generateAlerts);
 
   const loadData = useCallback(() => {
     debouncedRefresh(false);
