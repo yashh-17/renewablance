@@ -30,8 +30,9 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   const shownToastIds = useRef(new Set<string>());
   const lastRefreshTime = useRef<number>(0);
   const pendingRefreshTimeout = useRef<NodeJS.Timeout | null>(null);
+  const isInitialMount = useRef(true);
 
-  // Declare a function to create debouncedRefresh
+  // Create the debounced refresh function
   const createDebouncedRefresh = (generateAlertsFunc: ReturnType<typeof useAlertGenerator>['generateAlerts']) => 
     useCallback((force = false) => {
       if (pendingRefreshTimeout.current) {
@@ -52,6 +53,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
         const currentSubscriptions = getSubscriptions();
         updateSubscriptions(currentSubscriptions);
         
+        console.log('Generating alerts with force =', force);
         const newAlerts = generateAlertsFunc(currentSubscriptions, force);
         
         if (newAlerts.length > 0) {
@@ -60,29 +62,31 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
           
           const alertToShow = newAlerts.find(alert => !shownToastIds.current.has(alert.id));
           if (alertToShow) {
+            console.log('Showing toast for alert:', alertToShow.title);
             toast({
               title: alertToShow.title,
               description: alertToShow.message,
             });
             shownToastIds.current.add(alertToShow.id);
           }
+        } else {
+          console.log('No new alerts generated');
         }
       }, 300);
-    }, [updateAlerts, updateSubscriptions, toast]);
+    }, [generateAlertsFunc, updateAlerts, updateSubscriptions, toast]);
 
   // Use the alert generator hook
   const { generateAlerts } = useAlertGenerator(
     lastData,
     updateLastData,
-    onEditSubscription,
-    // Pass the creator function instead of the function itself
-    (force) => debouncedRefresh(force)
+    onEditSubscription
   );
 
-  // Create the debounced refresh function after generating alerts
+  // Create the debounced refresh function
   const debouncedRefresh = createDebouncedRefresh(generateAlerts);
 
   const loadData = useCallback(() => {
+    console.log('Loading data for alerts');
     debouncedRefresh(false);
   }, [debouncedRefresh]);
 
@@ -104,8 +108,20 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   );
 
   useEffect(() => {
+    console.log('AlertsModule mounted');
     shownToastIds.current.clear();
-    setTimeout(loadData, 300);
+    
+    // Load data with slight delay to ensure everything is initialized
+    setTimeout(() => {
+      console.log('Initial data load for alerts');
+      loadData();
+      
+      // Force a refresh after initial load to ensure we have alerts
+      setTimeout(() => {
+        console.log('Forcing refresh to ensure alerts are generated');
+        forceRefresh();
+      }, 1000);
+    }, 300);
     
     const unreadAlerts = alerts.filter(alert => !alert.read);
     if (unreadAlerts.length > 0) {
@@ -114,9 +130,17 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
         description: "You have unread notifications in your alerts center"
       });
     }
+    
+    return () => {
+      console.log('AlertsModule unmounting');
+      if (pendingRefreshTimeout.current) {
+        clearTimeout(pendingRefreshTimeout.current);
+      }
+    };
   }, []);
 
   const markAsRead = (alertId: string) => {
+    console.log('Marking alert as read:', alertId);
     setAlerts(prevAlerts => prevAlerts.filter(alert => alert.id !== alertId));
     updateDismissedAlert(alertId);
     toast({
@@ -126,6 +150,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   };
 
   const handleAction = (alert: Alert) => {
+    console.log('Handling alert action:', alert.id);
     if (alert.action) {
       alert.action();
     }
@@ -150,11 +175,17 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
         </div>
       </CardHeader>
       <CardContent className="max-h-[400px] overflow-y-auto p-3">
-        <AlertsList 
-          alerts={alerts} 
-          onDismiss={markAsRead} 
-          onAction={handleAction} 
-        />
+        {alerts.length > 0 ? (
+          <AlertsList 
+            alerts={alerts} 
+            onDismiss={markAsRead} 
+            onAction={handleAction} 
+          />
+        ) : (
+          <div className="text-center py-6">
+            <p className="text-muted-foreground">No notifications at this time</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

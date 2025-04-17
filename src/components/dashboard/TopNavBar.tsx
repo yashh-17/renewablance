@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plus, IndianRupee, Pencil } from 'lucide-react';
@@ -6,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import BellNotification from '../alerts/BellNotification';
-import { getSubscriptions } from '@/services/subscriptionService';
+import { getSubscriptions, getSubscriptionsDueForRenewal } from '@/services/subscriptionService';
 import { Subscription } from '@/types/subscription';
 
 interface TopNavBarProps {
@@ -33,33 +32,17 @@ const TopNavBar: React.FC<TopNavBarProps> = ({
   const [unreadAlertsCount, setUnreadAlertsCount] = useState(0);
 
   useEffect(() => {
-    // Calculate unread alerts count initially
     const checkForAlerts = () => {
       const subs = getSubscriptions();
       const now = new Date();
       now.setHours(0, 0, 0, 0);
       
-      let count = 0;
+      const upcomingRenewals = getSubscriptionsDueForRenewal(7);
+      console.log("TopNavBar found upcoming renewals:", upcomingRenewals.length);
       
-      // Check for upcoming renewals
-      subs.forEach(sub => {
-        if (sub.status !== 'active' && sub.status !== 'trial') return;
-        
-        const nextBilling = new Date(sub.nextBillingDate);
-        nextBilling.setHours(0, 0, 0, 0);
-        
-        const diffTime = nextBilling.getTime() - now.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffDays >= 0 && diffDays <= 7) {
-          count++;
-        }
-      });
-      
-      setUnreadAlertsCount(count);
+      setUnreadAlertsCount(upcomingRenewals.length);
     };
     
-    // Check initially and whenever subscriptions change
     checkForAlerts();
     
     const handleSubscriptionEvent = () => {
@@ -68,10 +51,15 @@ const TopNavBar: React.FC<TopNavBarProps> = ({
     
     window.addEventListener('subscription-updated', handleSubscriptionEvent);
     window.addEventListener('renewal-detected', handleSubscriptionEvent);
+    window.addEventListener('new-subscription-added', handleSubscriptionEvent);
+    
+    const intervalId = setInterval(checkForAlerts, 30000);
     
     return () => {
       window.removeEventListener('subscription-updated', handleSubscriptionEvent);
       window.removeEventListener('renewal-detected', handleSubscriptionEvent);
+      window.removeEventListener('new-subscription-added', handleSubscriptionEvent);
+      clearInterval(intervalId);
     };
   }, []);
 
@@ -94,13 +82,13 @@ const TopNavBar: React.FC<TopNavBarProps> = ({
     if (!isNaN(budgetValue) && budgetValue > 0) {
       localStorage.setItem('monthlyBudget', budget);
       setShowBudgetDialog(false);
+      
+      window.dispatchEvent(new CustomEvent('subscription-updated'));
     }
   };
 
   const handleEditSpecificSubscription = (subscription: Subscription) => {
-    // Close any active popups first
     if (onEditSubscription) {
-      // Pass the subscription to Dashboard for editing
       window.dispatchEvent(new CustomEvent('edit-subscription', { 
         detail: { subscription } 
       }));
@@ -149,7 +137,6 @@ const TopNavBar: React.FC<TopNavBarProps> = ({
           </Button>
         )}
         
-        {/* Add Bell Notification component */}
         <BellNotification 
           unreadCount={unreadAlertsCount} 
           onEditSubscription={handleEditSpecificSubscription}

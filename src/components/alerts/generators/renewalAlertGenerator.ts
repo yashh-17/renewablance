@@ -1,7 +1,7 @@
 
 import { Subscription } from "@/types/subscription";
 import { Alert, AlertsState } from '../types';
-import { calculateDaysBetween } from '../alertUtils';
+import { calculateDaysBetween, createUniqueAlertId } from '../alertUtils';
 
 export const generateRenewalAlerts = (
   subscriptions: Subscription[],
@@ -17,13 +17,20 @@ export const generateRenewalAlerts = (
   const checkedRenewalsDates = { ...lastData.checkedRenewalsDates };
   const processedToasts = new Set<string>();
 
+  console.log('Processing subscriptions for renewal alerts:', subscriptions.length);
+  
   subscriptions.forEach(sub => {
     const renewalDate = new Date(sub.nextBillingDate);
     const daysToRenewal = calculateDaysBetween(now, renewalDate);
     const isPastDue = renewalDate < now;
     
+    console.log(`Subscription: ${sub.name}, days to renewal: ${daysToRenewal}, past due: ${isPastDue}`);
+    
     if (daysToRenewal <= 7 || isPastDue) {
-      const alertId = `renewal-${sub.id}-${renewalDate.toISOString()}`;
+      // Create a unique ID for this alert
+      const alertId = createUniqueAlertId('renewal', sub.id, renewalDate.toISOString().split('T')[0]);
+      
+      console.log(`Creating alert with ID: ${alertId}`);
       
       if (dismissedAlertIds.has(alertId)) {
         console.log('Skipping alert, already dismissed:', alertId);
@@ -83,5 +90,6 @@ export const generateRenewalAlerts = (
     }
   });
 
+  console.log(`Generated ${newAlerts.length} renewal alerts`);
   return { newAlerts, checkedRenewalsDates };
 };

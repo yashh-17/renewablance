@@ -17,6 +17,7 @@ const BellNotification: React.FC<BellNotificationProps> = ({
   onEditSubscription
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   
   // Close dropdown when clicking outside
@@ -32,6 +33,14 @@ const BellNotification: React.FC<BellNotificationProps> = ({
     
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
+  }, []);
+
+  // Force a re-render after mount to ensure the AlertsModule can initialize properly
+  useEffect(() => {
+    // Just to ensure the component has fully mounted before attempting to show alerts
+    setTimeout(() => {
+      setHasInitialized(true);
+    }, 100);
   }, []);
 
   return (
@@ -50,7 +59,7 @@ const BellNotification: React.FC<BellNotificationProps> = ({
       </button>
       
       <AnimatePresence>
-        {isOpen && (
+        {isOpen && hasInitialized && (
           <motion.div
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
