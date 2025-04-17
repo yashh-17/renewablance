@@ -1,9 +1,7 @@
-
 import { useCallback, useEffect, useRef } from 'react';
 import { 
   Card, 
   CardContent, 
-  CardDescription, 
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
@@ -32,7 +30,6 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   const lastRefreshTime = useRef<number>(0);
   const pendingRefreshTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Debounce refresh function
   const debouncedRefresh = useCallback((force = false) => {
     if (pendingRefreshTimeout.current) {
       clearTimeout(pendingRefreshTimeout.current);
@@ -58,7 +55,6 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
         console.log(`Generated ${newAlerts.length} new alerts`);
         updateAlerts(newAlerts);
         
-        // Show toast only for the first new alert that hasn't been shown before
         const alertToShow = newAlerts.find(alert => !shownToastIds.current.has(alert.id));
         if (alertToShow) {
           toast({
@@ -68,7 +64,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
           shownToastIds.current.add(alertToShow.id);
         }
       }
-    }, 300); // Short debounce to coalesce rapid events
+    }, 300);
   }, [generateAlerts, updateAlerts, updateSubscriptions, toast]);
 
   const { generateAlerts } = useAlertGenerator(
@@ -99,12 +95,8 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     updateLastData
   );
 
-  // Initial alerts check - show unread count notification only once
   useEffect(() => {
-    // Clear toast IDs on mount
     shownToastIds.current.clear();
-    
-    // Load data with a slight delay
     setTimeout(loadData, 300);
     
     const unreadAlerts = alerts.filter(alert => !alert.read);
@@ -148,9 +140,6 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
             </span>
           )}
         </div>
-        <CardDescription>
-          Stay informed about your subscription activity
-        </CardDescription>
       </CardHeader>
       <CardContent className="max-h-[400px] overflow-y-auto">
         <AlertsList 
