@@ -1,7 +1,7 @@
 
 import { Subscription } from "@/types/subscription";
-import { Alert, AlertsState } from '../types';
-import { calculateDaysBetween, createUniqueAlertId } from '../alertUtils';
+import { Alert, AlertsState } from './types';
+import { calculateDaysBetween, createUniqueAlertId } from './alertUtils';
 
 export const generateRenewalAlerts = (
   subscriptions: Subscription[],
