@@ -1,4 +1,3 @@
-
 import { Subscription } from '@/types/subscription';
 import secureLogger from '../loggingService';
 import { 
@@ -11,6 +10,9 @@ import {
   calculateNextBillingDate 
 } from './calculations';
 import { triggerSubscriptionEvents } from './events';
+
+// Re-export the calculateNextBillingDate function so it can be used from the index
+export { calculateNextBillingDate } from './calculations';
 
 // Get all subscriptions for the current user
 export const getSubscriptions = (): Subscription[] => {
