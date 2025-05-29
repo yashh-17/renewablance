@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Subscription } from '@/types/subscription';
-import { getSubscriptions, saveSubscription, deleteSubscription } from '@/services/subscriptionService';
+import { getSubscriptions, saveSubscription, deleteSubscription } from '@/services/subscription';
 import { getRecommendations } from '@/services/recommendationService';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";

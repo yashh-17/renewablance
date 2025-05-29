@@ -1,7 +1,7 @@
 
 import { useCallback } from 'react';
 import { Subscription } from '@/types/subscription';
-import { getSubscriptionsDueForRenewal } from '@/services/subscriptionService';
+import { getSubscriptionsDueForRenewal } from '@/services/subscription';
 import { Alert, AlertsState } from './types';
 import { generateRenewalAlerts } from './generators/renewalAlertGenerator';
 import { useToast } from "@/hooks/use-toast";

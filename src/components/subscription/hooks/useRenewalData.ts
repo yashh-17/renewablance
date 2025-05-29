@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { getSubscriptionsDueForRenewal } from '@/services/subscriptionService';
+import { getSubscriptionsDueForRenewal } from '@/services/subscription';
 import { Subscription } from '@/types/subscription';
 import { calculateDaysBetween } from '../utils/renewalUtils';
 
