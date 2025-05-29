@@ -4,17 +4,13 @@ import { Subscription } from '@/types/subscription';
 import { getSubscriptionsDueForRenewal } from '@/services/subscriptionService';
 import { Alert, AlertsState } from './types';
 import { generateRenewalAlerts } from './generators/renewalAlertGenerator';
-import { generateSpendingAlerts } from './generators/spendingAlertGenerator';
-import { generateNewSubscriptionAlerts } from './generators/newSubscriptionAlertGenerator';
-import { generateMissedPaymentAlerts } from './generators/missedPaymentAlertGenerator';
 import { useToast } from "@/hooks/use-toast";
 import { createUniqueAlertId } from './alertUtils';
 
 export const useAlertGenerator = (
   lastData: AlertsState,
   updateLastData: (updates: Partial<AlertsState>) => void,
-  onEditSubscription?: (subscription: Subscription) => void,
-  refreshFunc?: (force: boolean) => void
+  onEditSubscription?: (subscription: Subscription) => void
 ) => {
   const { toast } = useToast();
   
@@ -36,88 +32,52 @@ export const useAlertGenerator = (
     const processedAlertIds = new Set(lastData.processedAlertIds);
     const { dismissedAlertIds } = lastData;
     
-    console.log('Generating alerts, force?', forceRegenerate, 'Current subs:', currentSubscriptions.length);
-    console.log('Dismissed alerts:', dismissedAlertIds.size, 'Processed alerts:', processedAlertIds.size);
+    console.log('Generating alerts for', currentSubscriptions.length, 'subscriptions');
     
-    // Generate renewal alerts
-    const upcomingRenewals = getSubscriptionsDueForRenewal(30);
-    console.log('Upcoming renewals found:', upcomingRenewals.length);
+    // Get upcoming renewals (within 7 days)
+    const upcomingRenewals = getSubscriptionsDueForRenewal(7);
+    console.log('Found', upcomingRenewals.length, 'upcoming renewals');
     
-    const { newAlerts: renewalAlerts, checkedRenewalsDates } = generateRenewalAlerts(
-      upcomingRenewals,
-      lastData,
-      processedAlertIds,
-      dismissedAlertIds,
-      now,
-      forceRegenerate,
-      onEditSubscription,
-      showToast
-    );
-    console.log('Generated renewal alerts:', renewalAlerts.length);
-    newAlerts.push(...renewalAlerts);
+    if (upcomingRenewals.length > 0) {
+      const { newAlerts: renewalAlerts, checkedRenewalsDates } = generateRenewalAlerts(
+        upcomingRenewals,
+        lastData,
+        processedAlertIds,
+        dismissedAlertIds,
+        now,
+        forceRegenerate,
+        onEditSubscription,
+        showToast
+      );
+      
+      console.log('Generated', renewalAlerts.length, 'renewal alerts');
+      newAlerts.push(...renewalAlerts);
+      
+      // Update checked dates
+      updateLastData({
+        checkedRenewalsDates,
+        processedAlertIds: processedAlertIds,
+        lastEventTimestamp: Date.now()
+      });
+    }
     
-    // Generate spending alerts
-    const { newAlerts: spendingAlerts, totalMonthlySpend } = generateSpendingAlerts(
-      currentSubscriptions,
-      lastData,
-      processedAlertIds,
-      now,
-      forceRegenerate,
-      onEditSubscription
-    );
-    console.log('Generated spending alerts:', spendingAlerts.length);
-    newAlerts.push(...spendingAlerts);
-    
-    // Generate new subscription alerts
-    const { newAlerts: newSubscriptionAlerts } = generateNewSubscriptionAlerts(
-      currentSubscriptions,
-      lastData,
-      processedAlertIds,
-      dismissedAlertIds,
-      now,
-      onEditSubscription,
-      showToast
-    );
-    console.log('Generated new subscription alerts:', newSubscriptionAlerts.length);
-    newAlerts.push(...newSubscriptionAlerts);
-    
-    // Generate missed payment alerts
-    const { newAlerts: missedPaymentAlerts } = generateMissedPaymentAlerts(
-      currentSubscriptions,
-      processedAlertIds,
-      now,
-      onEditSubscription
-    );
-    console.log('Generated missed payment alerts:', missedPaymentAlerts.length);
-    newAlerts.push(...missedPaymentAlerts);
-    
-    // Just for testing - add a test alert if no alerts were found
+    // Add a test alert if no real alerts exist and we're force generating
     if (newAlerts.length === 0 && forceRegenerate) {
-      const testAlertId = createUniqueAlertId('info', 'test', 'force-generated');
+      const testAlertId = createUniqueAlertId('info', 'test', 'no-alerts');
       if (!dismissedAlertIds.has(testAlertId)) {
-        console.log('Adding test alert to ensure notification center works');
+        console.log('Adding test notification');
         newAlerts.push({
           id: testAlertId,
           type: 'info',
-          title: 'Welcome to Notifications',
-          message: 'This is a test notification to show that the system is working.',
+          title: 'Notification Center Active',
+          message: 'Your notifications are working! You will see renewal alerts here when subscriptions are due within 7 days.',
           date: now,
           read: false
         });
       }
     }
     
-    // Update last data
-    updateLastData({
-      totalSpend: totalMonthlySpend,
-      count: currentSubscriptions.length,
-      subscriptionIds: currentSubscriptions.map(sub => sub.id),
-      checkedRenewalsDates: checkedRenewalsDates,
-      processedAlertIds: processedAlertIds,
-      lastEventTimestamp: Date.now()
-    });
-    
-    console.log('Total generated alerts:', newAlerts.length);
+    console.log('Total alerts generated:', newAlerts.length);
     return newAlerts;
   }, [lastData, onEditSubscription, showToast, updateLastData]);
 

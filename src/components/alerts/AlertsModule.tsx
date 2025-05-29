@@ -13,13 +13,12 @@ import { Alert, AlertsModuleProps } from './types';
 import AlertsList from './AlertsList';
 import { useAlertsState } from './useAlertsState';
 import { useAlertGenerator } from './useAlertGenerator';
-import { useAlertsEvents } from './useAlertsEvents';
+import { saveDismissedAlertsToStorage } from './alertUtils';
 
 const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   const { toast } = useToast();
   const { 
     alerts, 
-    subscriptions, 
     lastData, 
     updateLastData, 
     updateAlerts, 
@@ -27,122 +26,78 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     setAlerts 
   } = useAlertsState();
   
-  const shownToastIds = useRef(new Set<string>());
-  const lastRefreshTime = useRef<number>(0);
-  const pendingRefreshTimeout = useRef<NodeJS.Timeout | null>(null);
-  const isInitialMount = useRef(true);
+  const isInitialized = useRef(false);
 
-  // Create the debounced refresh function
-  const createDebouncedRefresh = (generateAlertsFunc: ReturnType<typeof useAlertGenerator>['generateAlerts']) => 
-    useCallback((force = false) => {
-      if (pendingRefreshTimeout.current) {
-        clearTimeout(pendingRefreshTimeout.current);
-      }
-      
-      pendingRefreshTimeout.current = setTimeout(() => {
-        const now = Date.now();
-        if (!force && now - lastRefreshTime.current < 1000) {
-          console.log('Skipping refresh - throttled');
-          return;
-        }
-        
-        lastRefreshTime.current = now;
-        pendingRefreshTimeout.current = null;
-        
-        console.log('Loading subscription data for alerts (debounced)');
-        const currentSubscriptions = getSubscriptions();
-        updateSubscriptions(currentSubscriptions);
-        
-        console.log('Generating alerts with force =', force);
-        const newAlerts = generateAlertsFunc(currentSubscriptions, force);
-        
-        if (newAlerts.length > 0) {
-          console.log(`Generated ${newAlerts.length} new alerts`);
-          updateAlerts(newAlerts);
-          
-          const alertToShow = newAlerts.find(alert => !shownToastIds.current.has(alert.id));
-          if (alertToShow) {
-            console.log('Showing toast for alert:', alertToShow.title);
-            toast({
-              title: alertToShow.title,
-              description: alertToShow.message,
-            });
-            shownToastIds.current.add(alertToShow.id);
-          }
-        } else {
-          console.log('No new alerts generated');
-        }
-      }, 300);
-    }, [generateAlertsFunc, updateAlerts, updateSubscriptions, toast]);
-
-  // Use the alert generator hook
   const { generateAlerts } = useAlertGenerator(
     lastData,
     updateLastData,
     onEditSubscription
   );
 
-  // Create the debounced refresh function
-  const debouncedRefresh = createDebouncedRefresh(generateAlerts);
-
   const loadData = useCallback(() => {
-    console.log('Loading data for alerts');
-    debouncedRefresh(false);
-  }, [debouncedRefresh]);
+    console.log('Loading subscription data for alerts');
+    const currentSubscriptions = getSubscriptions();
+    updateSubscriptions(currentSubscriptions);
+    
+    const newAlerts = generateAlerts(currentSubscriptions, false);
+    if (newAlerts.length > 0) {
+      updateAlerts(newAlerts);
+    }
+  }, [generateAlerts, updateAlerts, updateSubscriptions]);
 
   const forceRefresh = useCallback(() => {
     console.log('Force refreshing alerts');
-    if (Date.now() - lastData.lastEventTimestamp < 500) {
-      console.log('Skipping refresh - too soon after last event');
-      return;
-    }
+    const currentSubscriptions = getSubscriptions();
+    updateSubscriptions(currentSubscriptions);
     
-    debouncedRefresh(true);
-  }, [debouncedRefresh, lastData.lastEventTimestamp]);
+    const newAlerts = generateAlerts(currentSubscriptions, true);
+    updateAlerts(newAlerts);
+  }, [generateAlerts, updateAlerts, updateSubscriptions]);
 
-  const { updateDismissedAlert } = useAlertsEvents(
-    loadData, 
-    forceRefresh, 
-    lastData, 
-    updateLastData
-  );
-
+  // Initial load
   useEffect(() => {
-    console.log('AlertsModule mounted');
-    shownToastIds.current.clear();
-    
-    // Load data with slight delay to ensure everything is initialized
-    setTimeout(() => {
-      console.log('Initial data load for alerts');
+    if (!isInitialized.current) {
+      console.log('AlertsModule initializing');
+      isInitialized.current = true;
+      
+      // Load data immediately
       loadData();
       
-      // Force a refresh after initial load to ensure we have alerts
+      // Force refresh after a short delay to ensure we have alerts
       setTimeout(() => {
-        console.log('Forcing refresh to ensure alerts are generated');
         forceRefresh();
       }, 1000);
-    }, 300);
-    
-    const unreadAlerts = alerts.filter(alert => !alert.read);
-    if (unreadAlerts.length > 0) {
-      toast({
-        title: `${unreadAlerts.length} Unread Alert${unreadAlerts.length > 1 ? 's' : ''}`,
-        description: "You have unread notifications in your alerts center"
-      });
     }
+  }, [loadData, forceRefresh]);
+
+  // Event listeners
+  useEffect(() => {
+    const handleSubscriptionEvent = () => {
+      setTimeout(loadData, 500);
+    };
+    
+    window.addEventListener('subscription-updated', handleSubscriptionEvent);
+    window.addEventListener('renewal-detected', handleSubscriptionEvent);
+    window.addEventListener('new-subscription-added', handleSubscriptionEvent);
     
     return () => {
-      console.log('AlertsModule unmounting');
-      if (pendingRefreshTimeout.current) {
-        clearTimeout(pendingRefreshTimeout.current);
-      }
+      window.removeEventListener('subscription-updated', handleSubscriptionEvent);
+      window.removeEventListener('renewal-detected', handleSubscriptionEvent);
+      window.removeEventListener('new-subscription-added', handleSubscriptionEvent);
     };
-  }, []);
+  }, [loadData]);
 
   const markAsRead = (alertId: string) => {
-    console.log('Marking alert as read:', alertId);
+    console.log('Dismissing alert:', alertId);
     setAlerts(prevAlerts => prevAlerts.filter(alert => alert.id !== alertId));
-    updateDismissedAlert(alertId);
+    
+    // Update dismissed alerts
+    const newDismissedAlerts = new Set([...lastData.dismissedAlertIds, alertId]);
+    updateLastData({
+      dismissedAlertIds: newDismissedAlerts
+    });
+    saveDismissedAlertsToStorage(newDismissedAlerts);
+    
     toast({
       title: "Alert Dismissed",
       description: "Notification has been marked as read"
@@ -184,6 +139,9 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
         ) : (
           <div className="text-center py-6">
             <p className="text-muted-foreground">No notifications at this time</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Add subscriptions with renewal dates within 7 days to see alerts
+            </p>
           </div>
         )}
       </CardContent>
