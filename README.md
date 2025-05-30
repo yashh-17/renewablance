@@ -1,5 +1,5 @@
 
-# 📦 SubsTracker (aka RenewLance)
+# 📦 SubsTracker
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license) [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](#) [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](#)
 
