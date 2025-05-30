@@ -27,6 +27,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   } = useAlertsState();
   
   const isInitialized = useRef(false);
+  const loadTimeoutRef = useRef<NodeJS.Timeout>();
 
   const { generateAlerts } = useAlertGenerator(
     lastData,
@@ -35,26 +36,34 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
   );
 
   const loadData = useCallback(() => {
-    console.log('Loading subscription data for alerts');
-    const currentSubscriptions = getSubscriptions();
-    updateSubscriptions(currentSubscriptions);
-    
-    const newAlerts = generateAlerts(currentSubscriptions, false);
-    if (newAlerts.length > 0) {
-      updateAlerts(newAlerts);
+    try {
+      console.log('Loading subscription data for alerts');
+      const currentSubscriptions = getSubscriptions();
+      updateSubscriptions(currentSubscriptions);
+      
+      const newAlerts = generateAlerts(currentSubscriptions, false);
+      if (newAlerts.length > 0) {
+        updateAlerts(newAlerts);
+      }
+    } catch (error) {
+      console.error('Error loading alerts data:', error);
     }
   }, [generateAlerts, updateAlerts, updateSubscriptions]);
 
   const forceRefresh = useCallback(() => {
-    console.log('Force refreshing alerts');
-    const currentSubscriptions = getSubscriptions();
-    updateSubscriptions(currentSubscriptions);
-    
-    const newAlerts = generateAlerts(currentSubscriptions, true);
-    updateAlerts(newAlerts);
+    try {
+      console.log('Force refreshing alerts');
+      const currentSubscriptions = getSubscriptions();
+      updateSubscriptions(currentSubscriptions);
+      
+      const newAlerts = generateAlerts(currentSubscriptions, true);
+      updateAlerts(newAlerts);
+    } catch (error) {
+      console.error('Error force refreshing alerts:', error);
+    }
   }, [generateAlerts, updateAlerts, updateSubscriptions]);
 
-  // Initial load
+  // Initial load with proper cleanup
   useEffect(() => {
     if (!isInitialized.current) {
       console.log('AlertsModule initializing');
@@ -63,33 +72,58 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       // Load data immediately
       loadData();
       
-      // Force refresh after a short delay to ensure we have alerts
-      setTimeout(() => {
+      // Debounced force refresh to prevent excessive calls
+      loadTimeoutRef.current = setTimeout(() => {
         forceRefresh();
       }, 1000);
     }
+
+    return () => {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
+    };
   }, [loadData, forceRefresh]);
 
-  // Event listeners
+  // Event listeners with proper cleanup
   useEffect(() => {
     const handleSubscriptionEvent = () => {
-      setTimeout(loadData, 500);
+      // Debounce the load data call
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
+      loadTimeoutRef.current = setTimeout(loadData, 500);
     };
     
-    window.addEventListener('subscription-updated', handleSubscriptionEvent);
-    window.addEventListener('renewal-detected', handleSubscriptionEvent);
-    window.addEventListener('new-subscription-added', handleSubscriptionEvent);
+    const events = ['subscription-updated', 'renewal-detected', 'new-subscription-added'];
+    
+    events.forEach(event => {
+      window.addEventListener(event, handleSubscriptionEvent);
+    });
     
     return () => {
-      window.removeEventListener('subscription-updated', handleSubscriptionEvent);
-      window.removeEventListener('renewal-detected', handleSubscriptionEvent);
-      window.removeEventListener('new-subscription-added', handleSubscriptionEvent);
+      events.forEach(event => {
+        window.removeEventListener(event, handleSubscriptionEvent);
+      });
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
     };
   }, [loadData]);
 
-  const markAsRead = (alertId: string) => {
+  const markAsRead = useCallback((alertId: string) => {
     console.log('Dismissing alert:', alertId);
-    setAlerts(prevAlerts => prevAlerts.filter(alert => alert.id !== alertId));
+    setAlerts(prevAlerts => {
+      const updatedAlerts = prevAlerts.filter(alert => alert.id !== alertId);
+      
+      // Dispatch updated count
+      const unreadCount = updatedAlerts.filter(alert => !alert.read).length;
+      window.dispatchEvent(new CustomEvent('alerts-count-updated', { 
+        detail: { count: unreadCount } 
+      }));
+      
+      return updatedAlerts;
+    });
     
     // Update dismissed alerts
     const newDismissedAlerts = new Set([...lastData.dismissedAlertIds, alertId]);
@@ -102,15 +136,19 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       title: "Alert Dismissed",
       description: "Notification has been marked as read"
     });
-  };
+  }, [setAlerts, lastData.dismissedAlertIds, updateLastData, toast]);
 
-  const handleAction = (alert: Alert) => {
+  const handleAction = useCallback((alert: Alert) => {
     console.log('Handling alert action:', alert.id);
     if (alert.action) {
-      alert.action();
+      try {
+        alert.action();
+      } catch (error) {
+        console.error('Error executing alert action:', error);
+      }
     }
     markAsRead(alert.id);
-  };
+  }, [markAsRead]);
 
   const unreadAlertsCount = alerts.filter(alert => !alert.read).length;
 
@@ -140,7 +178,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
           <div className="text-center py-6">
             <p className="text-muted-foreground">No notifications at this time</p>
             <p className="text-xs text-muted-foreground mt-2">
-              Add subscriptions with renewal dates within 7 days to see alerts
+              You will see renewal alerts here when subscriptions are due within 7 days
             </p>
           </div>
         )}

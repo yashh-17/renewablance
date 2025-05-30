@@ -18,6 +18,7 @@ const BellNotification: React.FC<BellNotificationProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [localUnreadCount, setLocalUnreadCount] = useState(unreadCount);
   const ref = useRef<HTMLDivElement>(null);
   
   // Close dropdown when clicking outside
@@ -35,25 +36,54 @@ const BellNotification: React.FC<BellNotificationProps> = ({
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
 
-  // Force a re-render after mount to ensure the AlertsModule can initialize properly
+  // Update local count when prop changes
   useEffect(() => {
-    // Just to ensure the component has fully mounted before attempting to show alerts
-    setTimeout(() => {
+    setLocalUnreadCount(unreadCount);
+  }, [unreadCount]);
+
+  // Listen for alerts count updates from AlertsModule
+  useEffect(() => {
+    const handleAlertsCountUpdate = (event: CustomEvent) => {
+      if (event.detail?.count !== undefined) {
+        setLocalUnreadCount(event.detail.count);
+      }
+    };
+    
+    window.addEventListener('alerts-count-updated', handleAlertsCountUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('alerts-count-updated', handleAlertsCountUpdate as EventListener);
+    };
+  }, []);
+
+  // Initialize component properly
+  useEffect(() => {
+    const timer = setTimeout(() => {
       setHasInitialized(true);
     }, 100);
+    
+    return () => clearTimeout(timer);
   }, []);
+
+  // Reset count when dropdown opens (user has seen the notifications)
+  const handleToggle = () => {
+    setIsOpen(!isOpen);
+    if (!isOpen && localUnreadCount > 0) {
+      // Don't reset immediately, let AlertsModule handle the count
+    }
+  };
 
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className="relative p-2 rounded-full hover:bg-gray-100 transition-colors"
-        aria-label="Notifications"
+        aria-label={`Notifications${localUnreadCount > 0 ? ` (${localUnreadCount} unread)` : ''}`}
       >
         <Bell className="h-5 w-5 text-gray-600" />
-        {unreadCount > 0 && (
+        {localUnreadCount > 0 && (
           <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 text-[10px] font-medium text-white">
-            {unreadCount > 99 ? '99+' : unreadCount}
+            {localUnreadCount > 99 ? '99+' : localUnreadCount}
           </span>
         )}
       </button>

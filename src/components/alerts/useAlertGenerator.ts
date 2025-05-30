@@ -61,23 +61,15 @@ export const useAlertGenerator = (
       });
     }
     
-    // Add a test alert if no real alerts exist and we're force generating
-    if (newAlerts.length === 0 && forceRegenerate) {
-      const testAlertId = createUniqueAlertId('info', 'test', 'no-alerts');
-      if (!dismissedAlertIds.has(testAlertId)) {
-        console.log('Adding test notification');
-        newAlerts.push({
-          id: testAlertId,
-          type: 'info',
-          title: 'Notification Center Active',
-          message: 'Your notifications are working! You will see renewal alerts here when subscriptions are due within 7 days.',
-          date: now,
-          read: false
-        });
-      }
-    }
+    // Removed test alert logic - no more fake notifications
     
     console.log('Total alerts generated:', newAlerts.length);
+    
+    // Dispatch event to sync notification count
+    window.dispatchEvent(new CustomEvent('alerts-count-updated', { 
+      detail: { count: newAlerts.length } 
+    }));
+    
     return newAlerts;
   }, [lastData, onEditSubscription, showToast, updateLastData]);
 
