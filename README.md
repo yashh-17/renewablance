@@ -1,3 +1,4 @@
+
 # 📦 SubsTracker (aka RenewLance)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license) [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](#) [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](#)
@@ -84,3 +85,63 @@ cd substracker
 npm install
 # or
 yarn install
+````
+
+### Run Locally
+
+```bash
+npm run dev
+# or
+yarn dev
+```
+
+Open your browser at `http://localhost:5173` to explore the app.
+
+---
+
+## 📂 Project Structure
+
+```
+src/
+├── components/
+│   ├── alerts/            # Notification center & bell icon
+│   ├── analytics/         # Chart components
+│   ├── dashboard/         # Overview & timeline views
+│   ├── subscription/      # CRUD forms & listings
+│   └── ui/                # Reusable UI primitives
+├── hooks/                 # Custom hooks (useDashboardData, etc.)
+├── pages/                 # Route components (Dashboard.tsx, etc.)
+├── services/              # Business logic & data layer
+├── types/                 # TypeScript interfaces & enums
+└── App.tsx, main.tsx, ... # Entry points & routing
+```
+
+---
+
+## 🤝 Contributing
+
+1. **Fork** the repo
+2. **Create** a feature branch (`git checkout -b feature/YourFeature`)
+3. **Commit** your changes (`git commit -m "feat: add awesome feature"`)
+4. **Push** to your fork (`git push origin feature/YourFeature`)
+5. Open a **Pull Request**
+
+Please follow the [Code of Conduct](CODE_OF_CONDUCT.md) and style guidelines.
+
+---
+
+## 🔮 Future Roadmap
+
+* Real **backend integration** (e.g., Node + Supabase)
+* **OAuth** & team/family sharing
+* **Bank API** sync for automatic expense import
+* Mobile-first styling & PWA readiness
+* **Unit & integration tests** with Jest/React Testing Library
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
+
+---
