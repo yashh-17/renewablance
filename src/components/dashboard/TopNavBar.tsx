@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plus, IndianRupee, Pencil } from 'lucide-react';
@@ -6,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import BellNotification from '../alerts/BellNotification';
-import { getSubscriptions, getSubscriptionsDueForRenewal } from '@/services/subscriptionService';
 import { Subscription } from '@/types/subscription';
 
 interface TopNavBarProps {
@@ -30,69 +28,6 @@ const TopNavBar: React.FC<TopNavBarProps> = ({
   const [budget, setBudget] = useState<string>(() => {
     return localStorage.getItem('monthlyBudget') || '';
   });
-  const [unreadAlertsCount, setUnreadAlertsCount] = useState(0);
-  const updateTimeoutRef = useRef<NodeJS.Timeout>();
-
-  const checkForAlerts = useCallback(() => {
-    try {
-      const subs = getSubscriptions();
-      const upcomingRenewals = getSubscriptionsDueForRenewal(7);
-      console.log("TopNavBar found upcoming renewals:", upcomingRenewals.length);
-      
-      setUnreadAlertsCount(upcomingRenewals.length);
-    } catch (error) {
-      console.error('Error checking for alerts:', error);
-      setUnreadAlertsCount(0);
-    }
-  }, []);
-
-  const debouncedCheckForAlerts = useCallback(() => {
-    if (updateTimeoutRef.current) {
-      clearTimeout(updateTimeoutRef.current);
-    }
-    updateTimeoutRef.current = setTimeout(checkForAlerts, 300);
-  }, [checkForAlerts]);
-
-  useEffect(() => {
-    checkForAlerts();
-    
-    const handleSubscriptionEvent = () => {
-      debouncedCheckForAlerts();
-    };
-    
-    const handleAlertsCountUpdate = (event: CustomEvent) => {
-      if (event.detail?.count !== undefined) {
-        console.log('Received alerts count update:', event.detail.count);
-        setUnreadAlertsCount(event.detail.count);
-      }
-    };
-    
-    const events = [
-      'subscription-updated',
-      'renewal-detected', 
-      'new-subscription-added'
-    ];
-    
-    events.forEach(event => {
-      window.addEventListener(event, handleSubscriptionEvent);
-    });
-    
-    window.addEventListener('alerts-count-updated', handleAlertsCountUpdate as EventListener);
-    
-    // Periodic check with longer interval to prevent excessive calls
-    const intervalId = setInterval(checkForAlerts, 60000); // Check every minute
-    
-    return () => {
-      events.forEach(event => {
-        window.removeEventListener(event, handleSubscriptionEvent);
-      });
-      window.removeEventListener('alerts-count-updated', handleAlertsCountUpdate as EventListener);
-      clearInterval(intervalId);
-      if (updateTimeoutRef.current) {
-        clearTimeout(updateTimeoutRef.current);
-      }
-    };
-  }, [checkForAlerts, debouncedCheckForAlerts]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,7 +104,6 @@ const TopNavBar: React.FC<TopNavBarProps> = ({
         )}
         
         <BellNotification 
-          unreadCount={unreadAlertsCount} 
           onEditSubscription={handleEditSpecificSubscription}
         />
         

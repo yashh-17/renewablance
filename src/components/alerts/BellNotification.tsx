@@ -18,8 +18,9 @@ const BellNotification: React.FC<BellNotificationProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
-  const [localUnreadCount, setLocalUnreadCount] = useState(unreadCount);
+  const [localUnreadCount, setLocalUnreadCount] = useState(0); // Start with 0 instead of prop
   const ref = useRef<HTMLDivElement>(null);
+  const initTimeoutRef = useRef<NodeJS.Timeout>();
   
   // Close dropdown when clicking outside
   useOnClickOutside(ref, () => setIsOpen(false));
@@ -36,16 +37,30 @@ const BellNotification: React.FC<BellNotificationProps> = ({
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
 
-  // Update local count when prop changes
+  // Initialize component with proper delay to allow alerts system to load
   useEffect(() => {
-    setLocalUnreadCount(unreadCount);
+    initTimeoutRef.current = setTimeout(() => {
+      setHasInitialized(true);
+      // Only set the initial count from props after initialization
+      if (unreadCount > 0) {
+        setLocalUnreadCount(unreadCount);
+      }
+    }, 500); // Give alerts system time to initialize
+    
+    return () => {
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+      }
+    };
   }, [unreadCount]);
 
-  // Listen for alerts count updates from AlertsModule
+  // Listen for alerts count updates from AlertsModule with proper validation
   useEffect(() => {
     const handleAlertsCountUpdate = (event: CustomEvent) => {
-      if (event.detail?.count !== undefined) {
-        setLocalUnreadCount(event.detail.count);
+      if (event.detail?.count !== undefined && typeof event.detail.count === 'number') {
+        const count = Math.max(0, event.detail.count); // Ensure non-negative
+        console.log('BellNotification received count update:', count);
+        setLocalUnreadCount(count);
       }
     };
     
@@ -56,32 +71,30 @@ const BellNotification: React.FC<BellNotificationProps> = ({
     };
   }, []);
 
-  // Initialize component properly
+  // Update from props only if it's higher than current local count (avoid stale data)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setHasInitialized(true);
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, []);
+    if (hasInitialized && unreadCount > localUnreadCount) {
+      setLocalUnreadCount(unreadCount);
+    }
+  }, [unreadCount, localUnreadCount, hasInitialized]);
 
-  // Reset count when dropdown opens (user has seen the notifications)
   const handleToggle = () => {
     setIsOpen(!isOpen);
-    if (!isOpen && localUnreadCount > 0) {
-      // Don't reset immediately, let AlertsModule handle the count
-    }
+    // Don't modify count here - let AlertsModule handle it
   };
+
+  // Only show badge if we have a positive count and component is initialized
+  const shouldShowBadge = hasInitialized && localUnreadCount > 0;
 
   return (
     <div className="relative" ref={ref}>
       <button
         onClick={handleToggle}
         className="relative p-2 rounded-full hover:bg-gray-100 transition-colors"
-        aria-label={`Notifications${localUnreadCount > 0 ? ` (${localUnreadCount} unread)` : ''}`}
+        aria-label={`Notifications${shouldShowBadge ? ` (${localUnreadCount} unread)` : ''}`}
       >
         <Bell className="h-5 w-5 text-gray-600" />
-        {localUnreadCount > 0 && (
+        {shouldShowBadge && (
           <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 text-[10px] font-medium text-white">
             {localUnreadCount > 99 ? '99+' : localUnreadCount}
           </span>

@@ -35,6 +35,20 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     onEditSubscription
   );
 
+  // Dispatch initial count immediately when component mounts
+  const dispatchCurrentCount = useCallback(() => {
+    const unreadCount = alerts.filter(alert => !alert.read).length;
+    console.log('AlertsModule dispatching count:', unreadCount);
+    window.dispatchEvent(new CustomEvent('alerts-count-updated', { 
+      detail: { count: unreadCount } 
+    }));
+  }, [alerts]);
+
+  // Dispatch count whenever alerts change
+  useEffect(() => {
+    dispatchCurrentCount();
+  }, [alerts, dispatchCurrentCount]);
+
   const loadData = useCallback(() => {
     try {
       console.log('Loading subscription data for alerts');
@@ -44,9 +58,18 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       const newAlerts = generateAlerts(currentSubscriptions, false);
       if (newAlerts.length > 0) {
         updateAlerts(newAlerts);
+      } else {
+        // Ensure we dispatch 0 count when no alerts
+        window.dispatchEvent(new CustomEvent('alerts-count-updated', { 
+          detail: { count: 0 } 
+        }));
       }
     } catch (error) {
       console.error('Error loading alerts data:', error);
+      // Dispatch 0 count on error
+      window.dispatchEvent(new CustomEvent('alerts-count-updated', { 
+        detail: { count: 0 } 
+      }));
     }
   }, [generateAlerts, updateAlerts, updateSubscriptions]);
 
@@ -60,6 +83,9 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
       updateAlerts(newAlerts);
     } catch (error) {
       console.error('Error force refreshing alerts:', error);
+      window.dispatchEvent(new CustomEvent('alerts-count-updated', { 
+        detail: { count: 0 } 
+      }));
     }
   }, [generateAlerts, updateAlerts, updateSubscriptions]);
 
@@ -116,7 +142,7 @@ const AlertsModule: React.FC<AlertsModuleProps> = ({ onEditSubscription }) => {
     setAlerts(prevAlerts => {
       const updatedAlerts = prevAlerts.filter(alert => alert.id !== alertId);
       
-      // Dispatch updated count
+      // Dispatch updated count immediately
       const unreadCount = updatedAlerts.filter(alert => !alert.read).length;
       window.dispatchEvent(new CustomEvent('alerts-count-updated', { 
         detail: { count: unreadCount } 
